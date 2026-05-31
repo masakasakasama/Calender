@@ -26,12 +26,13 @@ service cloud.firestore {
     // Couple Calendar rules.
     function allowedCalendarEmails() {
       return [
-        'masakasakasama.man@gmail.com'
+        'masakasakasama.man@gmail.com',
+        'rere.geier@gmail.com'
       ];
     }
 
     function rebeccaEmail() {
-      return 'masakasakasama.man@gmail.com';
+      return 'rere.geier@gmail.com';
     }
 
     function isCalendarAllowed() {

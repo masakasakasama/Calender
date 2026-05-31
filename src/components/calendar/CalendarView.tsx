@@ -17,13 +17,16 @@ type Mode = 'month' | 'week' | 'day';
 export function CalendarView({
   events,
   onSelectEvent,
+  onAddOnDate,
 }: {
   events: CalendarEvent[];
   onSelectEvent: (e: CalendarEvent) => void;
+  onAddOnDate?: (date: Date) => void;
 }) {
   const [mode, setMode] = useState<Mode>('month');
   const [cursor, setCursor] = useState<Date>(new Date());
   const [slide, setSlide] = useState<'l' | 'r' | null>(null);
+  const [sheetDate, setSheetDate] = useState<Date | null>(null);
 
   const eventsOn = (d: Date) => events.filter((e) => sameDay(new Date(e.start), d)).sort((a, b) => a.start.localeCompare(b.start));
 
@@ -77,9 +80,51 @@ export function CalendarView({
         onTouchEnd={onTouchEnd}
         onAnimationEnd={() => setSlide(null)}
       >
-        {mode === 'month' && <MonthView cursor={cursor} eventsOn={eventsOn} onPickDay={(d) => { setCursor(d); setMode('day'); }} />}
+        {mode === 'month' && <MonthView cursor={cursor} eventsOn={eventsOn} onPickDay={(d) => setSheetDate(d)} />}
         {mode === 'week' && <WeekView cursor={cursor} eventsOn={eventsOn} onSelectEvent={onSelectEvent} />}
         {mode === 'day' && <DayList day={cursor} events={eventsOn(cursor)} onSelectEvent={onSelectEvent} />}
+      </div>
+
+      {sheetDate && (
+        <DaySheet
+          day={sheetDate}
+          events={eventsOn(sheetDate)}
+          onClose={() => setSheetDate(null)}
+          onSelectEvent={(e) => { setSheetDate(null); onSelectEvent(e); }}
+          onAdd={onAddOnDate ? () => { const d = sheetDate; setSheetDate(null); onAddOnDate(d); } : undefined}
+        />
+      )}
+    </div>
+  );
+}
+
+// 月表示で日付をタップしたときに開く、その日の予定シート。
+function DaySheet({
+  day,
+  events,
+  onClose,
+  onSelectEvent,
+  onAdd,
+}: {
+  day: Date;
+  events: CalendarEvent[];
+  onClose: () => void;
+  onSelectEvent: (e: CalendarEvent) => void;
+  onAdd?: () => void;
+}) {
+  return (
+    <div className="scrim" onClick={onClose}>
+      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="grab" />
+        <h3>{day.getFullYear()}年{day.getMonth() + 1}月{day.getDate()}日({WEEKDAY_LABELS[day.getDay()]})</h3>
+        {events.length === 0 ? (
+          <div className="empty">この日の予定はありません</div>
+        ) : (
+          events.map((e) => <EventCard key={e.appEventId} event={e} onClick={() => onSelectEvent(e)} />)
+        )}
+        {onAdd && (
+          <button className="btn" style={{ marginTop: 10 }} onClick={onAdd}>＋ この日に予定を追加</button>
+        )}
       </div>
     </div>
   );

@@ -39,7 +39,7 @@ jobs:
         env:
           VITE_BASE: /Calender/
           VITE_PARTNER_EMAIL: masakasakasama.man@gmail.com
-          VITE_REBECCA_EMAIL: masakasakasama.man@gmail.com
+          VITE_REBECCA_EMAIL: rere.geier@gmail.com
           VITE_FIREBASE_API_KEY: AIzaSyDBBD1W-zneFDNi1eZCtYqvyoXyJcmdk0k
           VITE_FIREBASE_AUTH_DOMAIN: warikan-app-120fd.firebaseapp.com
           VITE_FIREBASE_PROJECT_ID: warikan-app-120fd
