@@ -1,30 +1,31 @@
-@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Zen+Maru+Gothic:wght@500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Kosugi+Maru&family=Yomogi&display=swap');
 
 :root {
-  /* パステル甘め パレット */
-  --bg: #fff5f9;
-  --bg-grad-1: #ffe9f3;
-  --bg-grad-2: #f3ecff;
+  /* Friendly Cloud テイスト（淡い水色＋手描き） */
+  --bg: #e9f0fa;
+  --bg-grad-1: #e7effb;
+  --bg-grad-2: #eef0fb;
   --surface: #ffffff;
-  --surface-2: #fdeef5;
-  --surface-3: #f4effb;
-  --primary: #ff8fc0;        /* ストロベリーピンク */
-  --primary-d: #ff6fae;
-  --lavender: #b39ddf;       /* ラベンダー */
+  --surface-2: #eaf1fb;
+  --surface-3: #eef1fa;
+  --primary: #8fb0e3;        /* やわらかい水色 */
+  --primary-d: #6f95d6;
+  --lavender: #aebfe8;
   --mint: #a8e6cf;
-  --accent-y: #ffd6a5;
-  --text: #6b5566;
-  --text-soft: #b39aa9;
-  --line: #fbe4ee;
-  --ok: #59c9a5;
-  --warn: #f0b35b;
-  --err: #ff8fa3;
-  --shadow: 0 10px 30px rgba(255, 143, 192, 0.18);
-  --shadow-sm: 0 4px 14px rgba(255, 143, 192, 0.14);
+  --accent-y: #ffd66b;
+  --text: #4a5268;           /* スレートグレー */
+  --text-soft: #9aa3ba;
+  --line: #e4ebf6;
+  --ok: #5cc1a3;
+  --warn: #e6b15c;
+  --err: #ef8aa0;
+  --shadow: 0 10px 30px rgba(110, 140, 210, 0.16);
+  --shadow-sm: 0 4px 14px rgba(110, 140, 210, 0.12);
   --radius: 22px;
   --tabbar-h: 70px;
-  font-family: 'Quicksand', 'Zen Maru Gothic', -apple-system, 'Hiragino Sans', sans-serif;
+  font-family: 'Kosugi Maru', -apple-system, 'Hiragino Maru Gothic ProN', 'Hiragino Sans', sans-serif;
 }
+.font-hand { font-family: 'Yomogi', 'Kosugi Maru', cursive; }
 
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 html, body, #root { height: 100%; }
@@ -54,7 +55,7 @@ input, textarea, select { font-family: inherit; font-size: 16px; }
   background: linear-gradient(180deg, rgba(255,245,249,.95), rgba(255,245,249,.7));
   backdrop-filter: blur(10px);
 }
-.appbar h1 { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+.appbar h1 { font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 7px; color: var(--primary-d); }
 .appbar-heart { filter: drop-shadow(0 2px 4px rgba(255,143,192,.5)); }
 .appbar .who {
   display: inline-flex; align-items: center; gap: 8px;
@@ -237,10 +238,8 @@ input, textarea, select { font-family: inherit; font-size: 16px; }
 /* ---- Login / splash ---- */
 .login { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 16px; padding: 32px; text-align: center; }
 .logo-badge {
-  font-size: 44px; width: 96px; height: 96px; border-radius: 32px;
-  display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(135deg, #fff, var(--surface-2));
-  box-shadow: var(--shadow); animation: float 3s ease-in-out infinite;
+  display: inline-flex; align-items: center; justify-content: center;
+  animation: float 3s ease-in-out infinite;
 }
 @keyframes float { 0%,100% { transform: translateY(0);} 50% { transform: translateY(-8px);} }
 .login h2 { font-size: 25px; font-weight: 700; }

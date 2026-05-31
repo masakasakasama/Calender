@@ -8,6 +8,7 @@ import { NotificationsScreen } from '@/screens/NotificationsScreen';
 import { SettingsScreen } from '@/screens/SettingsScreen';
 import { UpdateBanner } from '@/components/pwa/UpdateBanner';
 import { InstallHint } from '@/components/pwa/InstallHint';
+import { CloudMascot } from '@/components/CloudMascot';
 
 type Tab = 'shared' | 'rebecca' | 'add' | 'notifications' | 'settings';
 
@@ -22,7 +23,7 @@ export default function App() {
       <div className="app">
         <UpdateBanner />
         <div className="splash">
-          <div className="logo-badge">💗</div>
+          <div className="logo-badge"><CloudMascot size={92} /></div>
         </div>
       </div>
     );
@@ -65,8 +66,8 @@ export default function App() {
       <InstallHint />
 
       <header className="appbar">
-        <h1>
-          <span className="appbar-heart">💗</span> calender
+        <h1 className="font-hand">
+          <CloudMascot size={30} /> calender
         </h1>
         <div className="who">
           {user.displayName}

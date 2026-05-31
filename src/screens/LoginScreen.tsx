@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { CloudMascot } from '@/components/CloudMascot';
 
 // 固定URLでアクセスし、Googleログイン。許可された2人以外は利用不可。
 // Firebase 未設定のときは「ためしに入る」(モック) も使える。
@@ -22,8 +23,8 @@ export function LoginScreen() {
 
   return (
     <div className="login">
-      <div className="logo-badge">💗</div>
-      <h2>calender</h2>
+      <div className="logo-badge"><CloudMascot size={104} /></div>
+      <h2 className="font-hand">calender</h2>
       <p>
         ふたりだけの予定をひとつに。<br />
         Googleでログインしてはじめましょう。
