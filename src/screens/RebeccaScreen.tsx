@@ -15,7 +15,7 @@ export function RebeccaScreen({ user }: { user: User }) {
     .map((s) => s.lastSyncedAt)
     .filter(Boolean)
     .sort()
-    .at(-1);
+    .pop();
   const syncLabel = syncMode === 'live' ? 'Google連携中' : syncMode === 'cached' ? 'キャッシュ表示中' : '未連携';
 
   // 未連携: 自動でポップアップせず、ボタンで1回だけ連携する。

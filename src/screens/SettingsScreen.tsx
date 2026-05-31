@@ -19,7 +19,7 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
     .map((s) => s.lastSyncedAt)
     .filter(Boolean)
     .sort()
-    .at(-1);
+    .pop();
   const googleConnectionStatus = services.auth.isGoogleCalendarConnected?.()
     ? '連携済み'
     : hasRebeccaCache
