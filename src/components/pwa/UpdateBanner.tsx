@@ -1,18 +1,14 @@
 import { useUpdate } from '@/hooks/useUpdate';
 
-// 「新しいバージョンがあります。更新しますか」バナー。
-// 強制更新(requiredUpdate)時は UpdateService 側が自動適用するため、
-// ここは任意更新の提示が主目的。
+// 新しいバージョンを検知したら確認せず自動更新する。
+// ここでは「更新中」を一瞬表示するだけ（すぐ自動リロードされる）。
 export function UpdateBanner() {
-  const { state, applyUpdate } = useUpdate();
+  const { state } = useUpdate();
   if (!state?.updateAvailable) return null;
 
   return (
     <div className="banner">
-      <span style={{ flex: 1 }}>
-        新しいバージョン {state.latestVersion ?? ''} があります。更新しますか？
-      </span>
-      <button className="btn" onClick={() => applyUpdate()}>更新</button>
+      <span style={{ flex: 1 }}>新しいバージョンに更新しています…</span>
     </div>
   );
 }

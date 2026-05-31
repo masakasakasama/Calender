@@ -29,7 +29,19 @@ export function CalendarView({
   const [slide, setSlide] = useState<'l' | 'r' | null>(null);
   const [sheetDate, setSheetDate] = useState<Date | null>(null);
 
-  const eventsOn = (d: Date) => events.filter((e) => sameDay(new Date(e.start), d)).sort((a, b) => a.start.localeCompare(b.start));
+  // その日に「かかっている」予定を返す（複数日にまたがる予定は全ての日に表示）。
+  const eventsOn = (d: Date) => {
+    const key = ymd(d);
+    return events
+      .filter((e) => {
+        const startKey = ymd(new Date(e.start));
+        // 終了が翌0:00ちょうどの場合は前日までとみなす（終日/区切り対策）。
+        const endKey = ymd(new Date(new Date(e.end).getTime() - 1));
+        const lastKey = endKey >= startKey ? endKey : startKey;
+        return startKey <= key && key <= lastKey;
+      })
+      .sort((a, b) => a.start.localeCompare(b.start));
+  };
 
   const move = (dir: number) => {
     setSlide(dir > 0 ? 'l' : 'r');

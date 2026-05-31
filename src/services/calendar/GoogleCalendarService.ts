@@ -25,7 +25,15 @@ interface GoogleEventItem {
   start?: { dateTime?: string; date?: string };
   end?: { dateTime?: string; date?: string };
   updated?: string;
+  colorId?: string;
 }
+
+// Google の「予定の色」colorId → 16進。カレンダーアプリと同じ配色。
+const GOOGLE_EVENT_COLORS: Record<string, string> = {
+  '1': '#a4bdfc', '2': '#7ae7bf', '3': '#dbadff', '4': '#ff887c',
+  '5': '#fbd75b', '6': '#ffb878', '7': '#46d6db', '8': '#e1e1e1',
+  '9': '#5484ed', '10': '#51b749', '11': '#dc2127',
+};
 
 async function authed<T>(tokenProvider: TokenProvider, path: string): Promise<T> {
   const token = await tokenProvider();
@@ -76,12 +84,29 @@ export class GoogleCalendarService implements ICalendarService {
       }));
   }
 
+  /** カレンダーID → カレンダーの色(backgroundColor) のマップ。 */
+  private async calendarColorMap(): Promise<Record<string, string>> {
+    try {
+      const data = await authed<{ items?: GoogleCalendarListItem[] }>(this.tokenProvider, '/users/me/calendarList');
+      const map: Record<string, string> = {};
+      for (const c of data.items ?? []) {
+        if (c.backgroundColor) map[c.id] = c.backgroundColor;
+      }
+      return map;
+    } catch {
+      return {};
+    }
+  }
+
   async listRebeccaEvents(googleCalendarIds: string[]): Promise<CalendarEvent[]> {
     const now = new Date();
     // 今年の頭（過去分含む）から1年先まで取得する。
     const from = new Date(now.getFullYear(), 0, 1);
     const to = new Date(now);
     to.setFullYear(to.getFullYear() + 1);
+
+    // カレンダーごとの色を取得（予定個別色が無いときの既定色）。
+    const colorMap = await this.calendarColorMap();
 
     // 1つのカレンダー取得が失敗しても、他のカレンダーの予定は表示する。
     const batches = await Promise.all(
@@ -106,6 +131,8 @@ export class GoogleCalendarService implements ICalendarService {
           const sourceId = ev.id;
           const updatedAt = ev.updated ? new Date(ev.updated).toISOString() : new Date().toISOString();
           const title = ev.summary ?? '無題の予定';
+          // 予定個別の色（colorId）優先、無ければカレンダーの色。
+          const color = (ev.colorId && GOOGLE_EVENT_COLORS[ev.colorId]) || colorMap[calendarId] || null;
           return {
             appEventId: `google-${calendarId}-${sourceId}`,
             title,
@@ -114,6 +141,7 @@ export class GoogleCalendarService implements ICalendarService {
             start: toIso(ev.start),
             end: toIso(ev.end),
             reminderMinutes: null,
+            color, // Googleカレンダーの色分けを反映
             emoji: suggestEmoji(title), // タイトルから絵文字を自動付与（月表示のアイコン）
             calendarType: 'rebecca_source',
             createdBy: 'google',

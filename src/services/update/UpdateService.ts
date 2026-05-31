@@ -38,8 +38,9 @@ export class UpdateService {
     const updateSW = registerSW({
       immediate: true,
       onNeedRefresh: () => {
-        // 新しい SW が waiting 状態。更新を提示する。
+        // 新しい SW を検知したら、確認せずに自動で適用する。
         this.patch({ updateAvailable: true });
+        void updateSW(true);
       },
       onRegisteredSW: (_swUrl, registration) => {
         // 起動時 + 定期にサーバ上の SW 更新を確認。
@@ -52,9 +53,12 @@ export class UpdateService {
       await updateSW(true);
     };
 
-    // controllerchange を検知して必要に応じてリロード（保険）。
+    // controllerchange を検知したら自動リロード（新SWへ切替）。
+    let reloaded = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (this.state.requiredUpdate) window.location.reload();
+      if (reloaded) return;
+      reloaded = true;
+      window.location.reload();
     });
 
     // バージョン(app_versions)チェックも起動時/復帰時に実行。
