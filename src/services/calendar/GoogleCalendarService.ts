@@ -1,5 +1,6 @@
 import type { IEventsRepository } from '@/repositories/events/IEventsRepository';
 import type { CalendarEvent, GoogleCalendarSummary } from '@/types';
+import { suggestEmoji } from '@/utils/eventStyle';
 import type { ICalendarService } from './ICalendarService';
 
 const API = 'https://www.googleapis.com/calendar/v3';
@@ -104,14 +105,16 @@ export class GoogleCalendarService implements ICalendarService {
         return (data.items ?? []).map((ev): CalendarEvent => {
           const sourceId = ev.id;
           const updatedAt = ev.updated ? new Date(ev.updated).toISOString() : new Date().toISOString();
+          const title = ev.summary ?? '無題の予定';
           return {
             appEventId: `google-${calendarId}-${sourceId}`,
-            title: ev.summary ?? '無題の予定',
+            title,
             description: ev.description ?? '',
             location: ev.location ?? '',
             start: toIso(ev.start),
             end: toIso(ev.end),
             reminderMinutes: null,
+            emoji: suggestEmoji(title), // タイトルから絵文字を自動付与（月表示のアイコン）
             calendarType: 'rebecca_source',
             createdBy: 'google',
             updatedBy: 'google',

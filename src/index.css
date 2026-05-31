@@ -147,19 +147,24 @@ input, textarea, select { font-family: inherit; font-size: 16px; }
 .seg button.active { background: #fff; color: var(--primary-d); box-shadow: var(--shadow-sm); }
 .navbtn { width: 38px; height: 38px; border-radius: 12px; background: #fff; font-size: 17px; color: var(--primary-d); box-shadow: var(--shadow-sm); }
 
-.month-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.month-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
 .month-grid .dow { text-align: center; font-size: 11px; font-weight: 700; color: var(--text-soft); padding: 4px 0; }
 .month-cell {
-  aspect-ratio: 1; border-radius: 14px; background: var(--surface); padding: 5px;
-  display: flex; flex-direction: column; gap: 3px; font-size: 11px; box-shadow: var(--shadow-sm);
-  border: 1px solid #fff; transition: transform .12s;
+  min-height: 74px; border-radius: 12px; background: var(--surface); padding: 4px 3px;
+  display: flex; flex-direction: column; gap: 2px; font-size: 11px; box-shadow: var(--shadow-sm);
+  border: 1px solid #fff; transition: transform .12s; overflow: hidden;
 }
-.month-cell:active { transform: scale(.94); }
-.month-cell.dim { opacity: .4; }
+.month-cell:active { transform: scale(.96); }
+.month-cell.dim { opacity: .45; }
 .month-cell.today { background: linear-gradient(135deg, var(--surface-2), #fff); outline: 2px solid var(--primary); }
-.month-cell .dnum { font-weight: 700; }
-.dot { width: 6px; height: 6px; border-radius: 50%; background: linear-gradient(var(--primary), var(--lavender)); }
-.dots { display: flex; gap: 3px; flex-wrap: wrap; }
+.month-cell .dnum { font-weight: 700; font-size: 12px; padding-left: 2px; }
+.cell-evts { display: flex; flex-direction: column; gap: 2px; width: 100%; overflow: hidden; }
+.evt-chip {
+  font-size: 8.5px; line-height: 1.35; font-weight: 600; color: #fff;
+  background: var(--primary); border-radius: 4px; padding: 1px 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+}
+.evt-more { font-size: 8px; font-weight: 700; color: var(--text-soft); padding-left: 3px; }
 
 /* ---- Forms / buttons ---- */
 .field { margin-bottom: 14px; }

@@ -159,14 +159,18 @@ function MonthView({
             onClick={() => onPickDay(d)}
           >
             <span className="dnum">{d.getDate()}</span>
-            <div className="dots">
-              {evs.slice(0, 4).map((e) => (
+            <div className="cell-evts">
+              {evs.slice(0, 3).map((e) => (
                 <span
-                  className="dot"
+                  className="evt-chip"
                   key={e.appEventId}
                   style={e.color ? { background: e.color } : undefined}
-                />
+                >
+                  {e.emoji ? `${e.emoji} ` : ''}
+                  {e.title}
+                </span>
               ))}
+              {evs.length > 3 && <span className="evt-more">+{evs.length - 3}</span>}
             </div>
           </div>
         );
