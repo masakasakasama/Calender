@@ -22,7 +22,6 @@ function makeProvider(includeCalendarScopes = false): GoogleAuthProvider {
   provider.setCustomParameters({ prompt: 'select_account' });
   if (includeCalendarScopes) {
     provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
-    provider.addScope('https://www.googleapis.com/auth/calendar.events');
   }
   return provider;
 }

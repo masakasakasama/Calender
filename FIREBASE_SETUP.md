@@ -57,4 +57,5 @@
 ## セキュリティ方針
 - Firebase Auth はブラウザのローカル永続化を使い、通常の再読み込みではログイン状態を維持します。
 - Google Calendar API のアクセストークンはlocalStorage等へ保存しません。必要な場合だけFirebase AuthのGoogle providerから取得します。
+- Google Calendar 権限は読み取り専用（`calendar.readonly`）です。
 - Firestoreルールで、共有予定は2人だけ、レベッカのGoogleカレンダー設定と共有操作はレベッカ本人だけに制限します。
