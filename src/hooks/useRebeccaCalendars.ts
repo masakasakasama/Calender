@@ -138,15 +138,32 @@ export function useRebeccaCalendars(currentUserId: string | null) {
 
   const shareEvent = useCallback(
     async (ev: CalendarEvent) => {
-      const sharedCalendarId = services.settingsRepo.getAppConfig().sharedCalendarId;
-      if (!sharedCalendarId) return;
-      await services.share.shareEvent({ sharedCalendarId, source: ev, byUserId: currentUserId ?? 'user-rebecca' });
+      setError(null);
+      try {
+        const sharedCalendarId = services.settingsRepo.getAppConfig().sharedCalendarId;
+        if (!sharedCalendarId) {
+          await services.calendar.ensureSharedCalendar().then((id) => services.settingsRepo.setSharedCalendarId(id));
+        }
+        const id = services.settingsRepo.getAppConfig().sharedCalendarId;
+        if (!id) {
+          setError('共有カレンダーが未設定です。設定画面を確認してください。');
+          return;
+        }
+        await services.share.shareEvent({ sharedCalendarId: id, source: ev, byUserId: currentUserId ?? 'user-rebecca' });
+      } catch (e) {
+        setError(e instanceof Error ? e.message : '共有に失敗しました');
+      }
     },
     [currentUserId],
   );
 
   const unshareEvent = useCallback(async (ev: CalendarEvent) => {
-    await services.share.unshareEvent(ev.sourceGoogleEventId ?? ev.appEventId);
+    setError(null);
+    try {
+      await services.share.unshareEvent(ev.sourceGoogleEventId ?? ev.appEventId);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '共有解除に失敗しました');
+    }
   }, []);
 
   // ユーザー操作で1回だけGoogleカレンダー連携。成功したら再読み込み。

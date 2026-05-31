@@ -41,8 +41,13 @@ export class FirestoreEventsRepository implements IEventsRepository {
 
   async upsert(event: CalendarEvent): Promise<CalendarEvent> {
     const next = { ...event, updatedAt: new Date().toISOString() };
+    // Firestore は undefined を受け付けないため除去する（color/emoji 等）。
+    const sanitized: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(next)) {
+      if (v !== undefined) sanitized[k] = v;
+    }
     await setDoc(doc(firebaseDb(), COL, event.appEventId), {
-      ...next,
+      ...sanitized,
       _serverUpdatedAt: serverTimestamp(),
     });
     return next;
