@@ -52,6 +52,14 @@ export class FirestoreSettingsRepository implements ISettingsRepository {
     );
   }
 
+  async setGoogleSharedCalendarId(calendarId: string | null): Promise<void> {
+    await setDoc(
+      doc(firebaseDb(), CONFIG_DOC, CONFIG_ID),
+      { googleSharedCalendarId: calendarId, updatedAt: new Date().toISOString() },
+      { merge: true },
+    );
+  }
+
   subscribeRebeccaSettings(listener: (settings: RebeccaCalendarSetting[]) => void): () => void {
     if (!this.rebeccaUnsubscribe) {
       this.rebeccaUnsubscribe = onSnapshot(collection(firebaseDb(), REBECCA_COL), (snap) => {

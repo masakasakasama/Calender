@@ -14,13 +14,15 @@ const buildNumber = env.VITE_BUILD_NUMBER ?? 'dev';
 const commitShort = (env.VITE_COMMIT_SHA ?? '').slice(0, 7);
 
 // アプリのバージョン。変更のたびにここを上げる（単一ソース）。
-const appVersion = '0.5.0';
+const appVersion = '0.6.0';
 
 export const APP_CONFIG = {
   fixedCoupleId: env.VITE_FIXED_COUPLE_ID ?? 'couple-main',
   partnerEmail,
   rebeccaEmail,
   allowedEmails: [partnerEmail, rebeccaEmail],
+  // 2人で購読する実Googleカレンダー（共有予定の書き込み先）。
+  googleSharedCalendarId: env.VITE_GOOGLE_SHARED_CALENDAR_ID ?? null,
   appVersion,
   buildNumber,
   commitShort,

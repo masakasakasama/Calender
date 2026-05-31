@@ -43,4 +43,10 @@ export interface ICalendarService {
 
   /** events.delete（共有カレンダー）相当。共有解除時のコピー削除。 */
   removeSharedEvent(sharedCalendarId: string, sharedGoogleEventId: string): Promise<void>;
+
+  // --- 実際のGoogleカレンダーへの書き込み（任意・本番のみ） -----------
+  /** 共有予定を実際のGoogleカレンダーに作成/更新し、googleEventId を返す。 */
+  pushEventToGoogle?(calendarId: string, event: CalendarEvent): Promise<string | null>;
+  /** 実際のGoogleカレンダーから予定を削除。 */
+  deleteEventFromGoogle?(calendarId: string, googleEventId: string): Promise<void>;
 }

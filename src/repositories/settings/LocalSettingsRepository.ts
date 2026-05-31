@@ -32,6 +32,11 @@ export class LocalSettingsRepository implements ISettingsRepository {
     localStore.set(CONFIG_KEY, { ...cfg, sharedCalendarId: calendarId, updatedAt: new Date().toISOString() });
   }
 
+  async setGoogleSharedCalendarId(calendarId: string | null): Promise<void> {
+    const cfg = this.getAppConfig();
+    localStore.set(CONFIG_KEY, { ...cfg, googleSharedCalendarId: calendarId, updatedAt: new Date().toISOString() });
+  }
+
   subscribeRebeccaSettings(listener: (settings: RebeccaCalendarSetting[]) => void): () => void {
     return localStore.subscribe<RebeccaCalendarSetting[]>(REBECCA_KEY, [], listener);
   }

@@ -22,6 +22,8 @@ export interface AppConfig {
   boyfriendEmail: string;
   girlfriendEmail: string;
   sharedCalendarId: string | null;
+  // 2人で購読する実際のGoogleカレンダーID（共有予定の書き込み先）。
+  googleSharedCalendarId?: string | null;
   createdAt: string;
   updatedAt: string;
 }

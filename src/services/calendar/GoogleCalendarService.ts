@@ -160,4 +160,46 @@ export class GoogleCalendarService implements ICalendarService {
   async removeSharedEvent(_sharedCalendarId: string, sharedGoogleEventId: string): Promise<void> {
     await this.events.softDelete(sharedGoogleEventId, 'system');
   }
+
+  // --- 実際のGoogleカレンダーへの書き込み -----------------------------
+  private toGoogleBody(event: CalendarEvent): Record<string, unknown> {
+    const title = `${event.emoji ? event.emoji + ' ' : ''}${event.title}`;
+    return {
+      summary: title,
+      description: event.description || undefined,
+      location: event.location || undefined,
+      start: { dateTime: new Date(event.start).toISOString() },
+      end: { dateTime: new Date(event.end).toISOString() },
+      // アプリ側IDを保持して重複・対応付けを管理。
+      extendedProperties: { private: { appEventId: event.appEventId } },
+    };
+  }
+
+  private async authedWrite<T>(method: 'POST' | 'PATCH' | 'DELETE', path: string, body?: unknown): Promise<T | null> {
+    const token = await this.tokenProvider();
+    if (!token) throw new Error('Googleカレンダーに書き込むには、設定でGoogle連携してください');
+    const res = await fetch(`${API}${path}`, {
+      method,
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (!res.ok) throw new Error(`Google Calendar 書き込みエラー: ${res.status}`);
+    if (method === 'DELETE') return null;
+    return res.json() as Promise<T>;
+  }
+
+  async pushEventToGoogle(calendarId: string, event: CalendarEvent): Promise<string | null> {
+    const base = `/calendars/${encodeURIComponent(calendarId)}/events`;
+    if (event.googleEventId) {
+      // 既存 → patch（更新）
+      await this.authedWrite('PATCH', `${base}/${encodeURIComponent(event.googleEventId)}`, this.toGoogleBody(event));
+      return event.googleEventId;
+    }
+    const created = await this.authedWrite<{ id: string }>('POST', base, this.toGoogleBody(event));
+    return created?.id ?? null;
+  }
+
+  async deleteEventFromGoogle(calendarId: string, googleEventId: string): Promise<void> {
+    await this.authedWrite('DELETE', `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(googleEventId)}`);
+  }
 }

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { User } from '@/types';
 import { APP_CONFIG } from '@/config/appConfig';
 import { useUpdate } from '@/hooks/useUpdate';
@@ -11,6 +12,23 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
   const { permission, requestPermission } = useNotifications();
 
   const config = services.settingsRepo.getAppConfig();
+  const googleCalId = config.googleSharedCalendarId ?? APP_CONFIG.googleSharedCalendarId;
+  const [gConnected, setGConnected] = useState<boolean>(services.auth.isGoogleCalendarConnected?.() ?? false);
+  const [gBusy, setGBusy] = useState(false);
+  const [gErr, setGErr] = useState<string | null>(null);
+
+  const connectGoogle = async () => {
+    setGErr(null);
+    setGBusy(true);
+    try {
+      const ok = (await services.auth.connectGoogleCalendar?.()) ?? false;
+      setGConnected(ok || (services.auth.isGoogleCalendarConnected?.() ?? false));
+    } catch (e) {
+      setGErr(e instanceof Error ? e.message : 'Google連携に失敗しました');
+    } finally {
+      setGBusy(false);
+    }
+  };
 
   return (
     <div>
@@ -35,6 +53,31 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
           <button className="btn" style={{ marginTop: 10 }} onClick={requestPermission}>通知を許可する</button>
         )}
       </div>
+
+      {services.backendName === 'firebase' && (
+        <>
+          <div className="section-title">Googleカレンダー連携</div>
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div className="set-row">
+              <span>共有先カレンダー</span>
+              <span className="v">{googleCalId ? '設定済み' : '未設定'}</span>
+            </div>
+            <div className="set-row">
+              <span>この端末の連携</span>
+              <span className="v">{gConnected ? '連携済み' : '未連携'}</span>
+            </div>
+            <p className="muted" style={{ margin: '10px 0' }}>
+              連携すると、アプリで「2人で共有」にした予定が、実際のGoogleカレンダーにも追加されます（2人のGoogleアプリに表示）。
+            </p>
+            {!gConnected && (
+              <button className="btn" disabled={gBusy} onClick={connectGoogle}>
+                {gBusy ? '連携中…' : 'Googleカレンダーと連携する'}
+              </button>
+            )}
+            {gErr && <p className="login-error" style={{ marginTop: 10 }}>{gErr}</p>}
+          </div>
+        </>
+      )}
 
       <div className="section-title">同期</div>
       <div className="card" style={{ marginBottom: 16 }}>

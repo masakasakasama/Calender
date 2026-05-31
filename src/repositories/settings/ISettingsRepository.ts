@@ -10,6 +10,7 @@ export interface ISettingsRepository {
   subscribeAppConfig(listener: (config: AppConfig) => void): () => void;
   getAppConfig(): AppConfig;
   setSharedCalendarId(calendarId: string): Promise<void>;
+  setGoogleSharedCalendarId(calendarId: string | null): Promise<void>;
 
   // rebecca_calendar_settings
   subscribeRebeccaSettings(listener: (settings: RebeccaCalendarSetting[]) => void): () => void;

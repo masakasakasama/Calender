@@ -9,6 +9,7 @@ interface ImportMetaEnv {
   readonly VITE_FIXED_COUPLE_ID?: string;
   readonly VITE_BUILD_NUMBER?: string;
   readonly VITE_COMMIT_SHA?: string;
+  readonly VITE_GOOGLE_SHARED_CALENDAR_ID?: string;
   readonly VITE_BACKEND?: 'mock' | 'firebase';
   readonly VITE_FIREBASE_API_KEY?: string;
   readonly VITE_FIREBASE_AUTH_DOMAIN?: string;
