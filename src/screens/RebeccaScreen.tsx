@@ -1,6 +1,7 @@
 import type { User } from '@/types';
 import { useRebeccaCalendars } from '@/hooks/useRebeccaCalendars';
 import { EventCard } from '@/components/calendar/EventCard';
+import { eventDisplayColor } from '@/utils/eventStyle';
 
 // レベッカ画面（レベッカ本人のみアクセス可）。
 // 既存Googleカレンダー一覧の表示/同期選択 → 予定一覧 → 共有。
@@ -8,8 +9,8 @@ export function RebeccaScreen({ user }: { user: User }) {
   const { calendars, settings, events, loading, error, needsConnect, connect, toggleVisible, toggleSync, isShared, shareEvent, unshareEvent } =
     useRebeccaCalendars(user.userId);
 
-  const colorOf = (calId: string | null) =>
-    calendars.find((c) => c.googleCalendarId === calId)?.calendarColor ?? 'var(--rebecca)';
+  const colorOf = (ev: Parameters<typeof eventDisplayColor>[0]) =>
+    ev.color ?? calendars.find((c) => c.googleCalendarId === ev.sourceGoogleCalendarId)?.calendarColor ?? eventDisplayColor(ev);
 
   // 未連携: 自動でポップアップせず、ボタンで1回だけ連携する。
   if (needsConnect) {
@@ -82,7 +83,7 @@ export function RebeccaScreen({ user }: { user: User }) {
               <EventCard
                 key={ev.appEventId}
                 event={ev}
-                accent={colorOf(ev.sourceGoogleCalendarId)}
+                accent={colorOf(ev)}
                 right={
                   shared ? (
                     <button className="btn sm secondary" onClick={() => unshareEvent(ev)}>

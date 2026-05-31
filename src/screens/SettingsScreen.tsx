@@ -13,6 +13,14 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
 
   const config = services.settingsRepo.getAppConfig();
   const googleCalId = config.googleSharedCalendarId ?? APP_CONFIG.googleSharedCalendarId;
+  const hasRebeccaCache = services.settingsRepo.getRebeccaSettings().length > 0;
+  const googleConnectionStatus = services.auth.isGoogleCalendarConnected?.()
+    ? '連携済み'
+    : hasRebeccaCache
+      ? 'キャッシュ使用'
+      : user.role === 'rebecca'
+        ? '未連携'
+        : '不要';
   const [gConnected, setGConnected] = useState<boolean>(services.auth.isGoogleCalendarConnected?.() ?? false);
   const [gBusy, setGBusy] = useState(false);
   const [gErr, setGErr] = useState<string | null>(null);
@@ -97,12 +105,12 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
             </div>
             <div className="set-row">
               <span>この端末の連携</span>
-              <span className="v">{gConnected ? '連携済み' : '未連携'}</span>
+              <span className="v">{googleConnectionStatus}</span>
             </div>
             <p className="muted" style={{ margin: '10px 0' }}>
-              連携すると、アプリで「2人で共有」にした予定が、実際のGoogleカレンダーにも追加されます（2人のGoogleアプリに表示）。
+              レベッカが一度読み込んだGoogle予定はFirestoreに保存されます。普段は再連携なしで開けて、Googleから最新に更新したい時だけ連携します。
             </p>
-            {!gConnected && (
+            {user.role === 'rebecca' && !gConnected && (
               <button className="btn" disabled={gBusy} onClick={connectGoogle}>
                 {gBusy ? '連携中…' : 'Googleカレンダーと連携する'}
               </button>

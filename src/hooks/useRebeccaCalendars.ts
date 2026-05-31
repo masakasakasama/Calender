@@ -26,12 +26,29 @@ export function useRebeccaCalendars(currentUserId: string | null) {
   const calendarReady = (): boolean =>
     services.auth.isGoogleCalendarConnected ? services.auth.isGoogleCalendarConnected() : true;
 
+  const cachedSourceEvents = (ids: string[]) =>
+    services.eventsRepo
+      .getAll()
+      .filter((e) => e.calendarType === 'rebecca_source' && ids.includes(e.sourceGoogleCalendarId ?? ''));
+
   // 既存カレンダー一覧を取得し、未登録のものを設定に同期。
   useEffect(() => {
     let active = true;
     (async () => {
       if (!calendarReady()) {
-        setNeedsConnect(true);
+        const existing = services.settingsRepo.getRebeccaSettings();
+        setSettings(existing);
+        setCalendars(
+          existing.map((s) => ({
+            googleCalendarId: s.googleCalendarId,
+            calendarName: s.calendarName,
+            calendarColor: s.calendarColor,
+            accessRole: s.accessRole,
+          })),
+        );
+        const ids = existing.filter((s) => s.syncEnabled).map((s) => s.googleCalendarId);
+        setEvents(cachedSourceEvents(ids));
+        setNeedsConnect(existing.length === 0);
         setLoading(false);
         return;
       }
@@ -98,14 +115,26 @@ export function useRebeccaCalendars(currentUserId: string | null) {
   // refreshKey を依存に含め、連携(connect)直後にも再取得する。
   useEffect(() => {
     const ids = settings.filter((s) => s.syncEnabled).map((s) => s.googleCalendarId);
-    if (ids.length === 0 || !calendarReady()) {
+    if (ids.length === 0) {
       setEvents([]);
+      return;
+    }
+    if (!calendarReady()) {
+      setEvents(cachedSourceEvents(ids));
       return;
     }
     let active = true;
     services.calendar
       .listRebeccaEvents(ids)
-      .then((evs) => {
+      .then(async (evs) => {
+        await Promise.all(
+          evs.map((ev) =>
+            services.eventsRepo.upsert({
+              ...ev,
+              updatedAt: new Date().toISOString(),
+            }).catch(() => ev),
+          ),
+        );
         if (active) {
           setError(null);
           setEvents(evs);

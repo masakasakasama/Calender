@@ -13,6 +13,9 @@ import { firebaseAuth } from '@/services/firebase/firebaseApp';
 import type { IUsersRepository } from '@/repositories/users/IUsersRepository';
 import type { IAuthService } from './IAuthService';
 
+const GCAL_TOKEN_KEY = 'calender_google_calendar_access_token';
+const GCAL_TOKEN_EXPIRES_KEY = 'calender_google_calendar_access_token_expires_at';
+
 // =====================================================================
 // 本番の Googleログイン。Firebase Auth + GoogleAuthProvider。
 // 許可された2メール以外はサインアウトさせて拒否する。
@@ -45,9 +48,33 @@ function toAppUser(fb: FbUser): User {
 
 export class FirebaseAuthService implements IAuthService {
   private current: User | null = null;
-  private googleAccessToken: string | null = null;
+  private googleAccessToken: string | null = this.restoreGoogleAccessToken();
 
   constructor(private users: IUsersRepository) {}
+
+  private restoreGoogleAccessToken(): string | null {
+    if (typeof sessionStorage === 'undefined') return null;
+    const expiresAt = Number(sessionStorage.getItem(GCAL_TOKEN_EXPIRES_KEY) ?? '0');
+    const token = sessionStorage.getItem(GCAL_TOKEN_KEY);
+    if (!token || !expiresAt || Date.now() >= expiresAt) {
+      sessionStorage.removeItem(GCAL_TOKEN_KEY);
+      sessionStorage.removeItem(GCAL_TOKEN_EXPIRES_KEY);
+      return null;
+    }
+    return token;
+  }
+
+  private rememberGoogleAccessToken(token: string | null): void {
+    this.googleAccessToken = token;
+    if (typeof sessionStorage === 'undefined') return;
+    if (!token) {
+      sessionStorage.removeItem(GCAL_TOKEN_KEY);
+      sessionStorage.removeItem(GCAL_TOKEN_EXPIRES_KEY);
+      return;
+    }
+    sessionStorage.setItem(GCAL_TOKEN_KEY, token);
+    sessionStorage.setItem(GCAL_TOKEN_EXPIRES_KEY, String(Date.now() + 55 * 60 * 1000));
+  }
 
   getCurrentUser(): User | null {
     return this.current;
@@ -103,7 +130,7 @@ export class FirebaseAuthService implements IAuthService {
       throw new Error('このアカウントはこのアプリを利用できません');
     }
     const oauth = GoogleAuthProvider.credentialFromResult(cred);
-    this.googleAccessToken = oauth?.accessToken ?? null;
+    this.rememberGoogleAccessToken(oauth?.accessToken ?? null);
     const user = toAppUser(cred.user);
     this.current = user;
     await this.users.upsert(user).catch(() => {});
@@ -120,7 +147,7 @@ export class FirebaseAuthService implements IAuthService {
 
   async signOut(): Promise<void> {
     this.current = null;
-    this.googleAccessToken = null;
+    this.rememberGoogleAccessToken(null);
     await fbSignOut(firebaseAuth());
   }
 }

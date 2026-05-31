@@ -53,8 +53,10 @@ export function eventDisplayColor(
   event: Pick<CalendarEvent, 'color' | 'categoryId' | 'sourceGoogleCalendarId' | 'googleCalendarId' | 'title'>,
 ): string {
   if (event.color) return event.color;
+  const googleSeed = event.sourceGoogleCalendarId ?? event.googleCalendarId;
+  if (googleSeed) return stablePaletteColor(googleSeed);
   if (event.categoryId) return categoryById(event.categoryId).color;
-  return stablePaletteColor(event.sourceGoogleCalendarId ?? event.googleCalendarId ?? event.title ?? 'default');
+  return stablePaletteColor(event.title ?? 'default');
 }
 
 export function colorById(id: string | null | undefined): string {

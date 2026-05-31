@@ -26,6 +26,7 @@ export function useGoogleSync(user: User | null) {
         const events = await services.calendar.listRebeccaEvents(ids);
         const allLinks = services.shareLinksRepo.getAll();
         for (const ev of events) {
+          await services.eventsRepo.upsert({ ...ev, updatedAt: new Date().toISOString() }).catch(() => ev);
           const srcId = ev.sourceGoogleEventId ?? ev.appEventId;
           const link = allLinks.find((l) => l.sourceGoogleEventId === srcId);
           if (!link) {
