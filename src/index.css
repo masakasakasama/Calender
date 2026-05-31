@@ -147,24 +147,32 @@ input, textarea, select { font-family: inherit; font-size: 16px; }
 .seg button.active { background: #fff; color: var(--primary-d); box-shadow: var(--shadow-sm); }
 .navbtn { width: 38px; height: 38px; border-radius: 12px; background: #fff; font-size: 17px; color: var(--primary-d); box-shadow: var(--shadow-sm); }
 
-.month-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
-.month-grid .dow { text-align: center; font-size: 11px; font-weight: 700; color: var(--text-soft); padding: 4px 0; }
-.month-cell {
-  min-height: 74px; border-radius: 12px; background: var(--surface); padding: 4px 3px;
-  display: flex; flex-direction: column; gap: 2px; font-size: 11px; box-shadow: var(--shadow-sm);
-  border: 1px solid #fff; transition: transform .12s; overflow: hidden;
+.month { display: flex; flex-direction: column; gap: 3px; }
+.dow-row { display: grid; grid-template-columns: repeat(7, 1fr); }
+.dow-row .dow { text-align: center; font-size: 11px; font-weight: 700; color: var(--text-soft); padding: 2px 0 4px; }
+.wk-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: 17px 14px 14px 14px 12px;
+  column-gap: 2px; row-gap: 1px; position: relative;
 }
-.month-cell:active { transform: scale(.96); }
-.month-cell.dim { opacity: .45; }
-.month-cell.today { background: linear-gradient(135deg, var(--surface-2), #fff); outline: 2px solid var(--primary); }
-.month-cell .dnum { font-weight: 700; font-size: 12px; padding-left: 2px; }
-.cell-evts { display: flex; flex-direction: column; gap: 2px; width: 100%; overflow: hidden; }
-.evt-chip {
-  font-size: 8.5px; line-height: 1.35; font-weight: 600; color: #fff;
-  background: var(--primary); border-radius: 4px; padding: 1px 4px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+.wk-cell {
+  grid-row: 1 / -1; background: var(--surface); border-radius: 10px;
+  box-shadow: var(--shadow-sm); border: 1px solid #fff; transition: transform .12s;
 }
-.evt-more { font-size: 8px; font-weight: 700; color: var(--text-soft); padding-left: 3px; }
+.wk-cell:active { transform: scale(.96); }
+.wk-cell.dim { opacity: .4; }
+.wk-cell.today { background: linear-gradient(135deg, var(--surface-2), #fff); outline: 2px solid var(--primary); }
+.wk-dnum { font-size: 11px; font-weight: 700; padding: 2px 0 0 5px; pointer-events: none; z-index: 2; }
+.wk-dnum.dim { opacity: .4; }
+.evt-bar {
+  font-size: 8.5px; line-height: 14px; height: 14px; font-weight: 600; color: #fff;
+  background: var(--primary); border-radius: 5px; padding: 0 4px; align-self: center;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  pointer-events: none; z-index: 2;
+}
+.evt-bar.cl { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.evt-bar.cr { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.evt-more { font-size: 8px; font-weight: 700; color: var(--text-soft); padding-left: 4px; pointer-events: none; z-index: 2; align-self: center; }
 
 /* ---- Forms / buttons ---- */
 .field { margin-bottom: 14px; }
@@ -209,6 +217,7 @@ input, textarea, select { font-family: inherit; font-size: 16px; }
   background: var(--surface); width: 100%; max-width: 540px; margin: 0 auto;
   border-radius: 28px 28px 0 0; padding: 20px 20px calc(env(safe-area-inset-bottom) + 20px);
   max-height: 90vh; overflow-y: auto; animation: up .26s cubic-bezier(.2,.9,.3,1.1);
+  overscroll-behavior: contain; /* 下スクロールでブラウザ更新(pull-to-refresh)を起こさない */
 }
 @keyframes up { from { transform: translateY(100%);} to { transform: translateY(0);} }
 .sheet h3 { margin-bottom: 16px; font-size: 19px; }

@@ -62,6 +62,11 @@ export class ShareService {
     return true;
   }
 
+  /** 既存の共有コピーの内容（色/絵文字/タイトル等）を最新ソースで上書き更新。 */
+  async refreshShared(params: { sharedCalendarId: string; source: CalendarEvent; byUserId: string }): Promise<void> {
+    await this.calendar.copyEventToShared(params); // 安定IDで上書き
+  }
+
   /** 共有解除: 共有カレンダー側コピーを削除し、share_link を removed に。 */
   async unshareEvent(sourceGoogleEventId: string): Promise<void> {
     const link = this.shareLinks.findActiveBySource(sourceGoogleEventId);

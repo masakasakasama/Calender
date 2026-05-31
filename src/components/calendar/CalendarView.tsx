@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { CalendarEvent } from '@/types';
 import { EventCard } from './EventCard';
+import { useSwipeDownClose } from '@/hooks/useSwipeDownClose';
 import {
   addDays,
   addMonths,
@@ -93,7 +94,7 @@ export function CalendarView({
         onTouchEnd={onTouchEnd}
         onAnimationEnd={() => setSlide(null)}
       >
-        {mode === 'month' && <MonthView cursor={cursor} eventsOn={eventsOn} onPickDay={(d) => setSheetDate(d)} />}
+        {mode === 'month' && <MonthView cursor={cursor} events={events} onPickDay={(d) => setSheetDate(d)} />}
         {mode === 'week' && <WeekView cursor={cursor} eventsOn={eventsOn} onSelectEvent={onSelectEvent} />}
         {mode === 'day' && <DayList day={cursor} events={eventsOn(cursor)} onSelectEvent={onSelectEvent} />}
       </div>
@@ -125,9 +126,16 @@ function DaySheet({
   onSelectEvent: (e: CalendarEvent) => void;
   onAdd?: () => void;
 }) {
+  const swipe = useSwipeDownClose(onClose);
   return (
     <div className="scrim" onClick={onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="sheet"
+        ref={swipe.ref}
+        onClick={(e) => e.stopPropagation()}
+        onTouchStart={swipe.onTouchStart}
+        onTouchEnd={swipe.onTouchEnd}
+      >
         <div className="grab" />
         <h3>{day.getFullYear()}年{day.getMonth() + 1}月{day.getDate()}日({WEEKDAY_LABELS[day.getDay()]})</h3>
         {events.length === 0 ? (
@@ -143,47 +151,110 @@ function DaySheet({
   );
 }
 
+const MAX_LANES = 3;
+
+// 月表示：複数日にまたがる予定を連続したバーで表示（週ごとにレイアウト）。
 function MonthView({
   cursor,
-  eventsOn,
+  events,
   onPickDay,
 }: {
   cursor: Date;
-  eventsOn: (d: Date) => CalendarEvent[];
+  events: CalendarEvent[];
   onPickDay: (d: Date) => void;
 }) {
   const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
   const gridStart = startOfWeek(first);
-  const cells = Array.from({ length: 42 }, (_, i) => addDays(gridStart, i));
   const today = new Date();
 
+  const startOfDay = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate());
+  const dayDiff = (a: Date, b: Date) => Math.round((startOfDay(a).getTime() - startOfDay(b).getTime()) / 86400000);
+
+  const weeks = Array.from({ length: 6 }, (_, w) =>
+    Array.from({ length: 7 }, (_, i) => addDays(gridStart, w * 7 + i)),
+  );
+
   return (
-    <div className="month-grid">
-      {WEEKDAY_HEADERS.map((w) => (
-        <div className="dow" key={w}>{w}</div>
-      ))}
-      {cells.map((d) => {
-        const evs = eventsOn(d);
-        const dim = d.getMonth() !== cursor.getMonth();
+    <div className="month">
+      <div className="dow-row">
+        {WEEKDAY_HEADERS.map((w) => (
+          <div className="dow" key={w}>{w}</div>
+        ))}
+      </div>
+      {weeks.map((week, wi) => {
+        const ws = week[0];
+        const we = week[6];
+
+        // この週にかかる予定を「セグメント」に変換。
+        type Seg = { e: CalendarEvent; c0: number; c1: number; contLeft: boolean; contRight: boolean; lane: number };
+        const raw: Omit<Seg, 'lane'>[] = [];
+        for (const e of events) {
+          const s = startOfDay(new Date(e.start));
+          let en = startOfDay(new Date(new Date(e.end).getTime() - 1));
+          if (en < s) en = s;
+          if (en < ws || s > we) continue;
+          raw.push({
+            e,
+            c0: Math.max(0, dayDiff(s, ws)),
+            c1: Math.min(6, dayDiff(en, ws)),
+            contLeft: s < ws,
+            contRight: en > we,
+          });
+        }
+        // レーン割り当て（重ならないように積む）。
+        raw.sort((a, b) => a.c0 - b.c0 || b.c1 - b.c0 - (a.c1 - a.c0));
+        const laneEnds: number[] = [];
+        const placed: Seg[] = [];
+        const overflow: Record<number, number> = {};
+        for (const seg of raw) {
+          let lane = 0;
+          while (lane < MAX_LANES && laneEnds[lane] != null && seg.c0 <= laneEnds[lane]) lane++;
+          if (lane < MAX_LANES) {
+            laneEnds[lane] = seg.c1;
+            placed.push({ ...seg, lane });
+          } else {
+            for (let c = seg.c0; c <= seg.c1; c++) overflow[c] = (overflow[c] ?? 0) + 1;
+          }
+        }
+
         return (
-          <div
-            key={d.toISOString()}
-            className={`month-cell${dim ? ' dim' : ''}${sameDay(d, today) ? ' today' : ''}`}
-            onClick={() => onPickDay(d)}
-          >
-            <span className="dnum">{d.getDate()}</span>
-            <div className="cell-evts">
-              {evs.slice(0, 3).map((e) => (
-                <span
-                  className="evt-chip"
-                  key={e.appEventId}
-                  style={e.color ? { background: e.color } : undefined}
+          <div className="wk" key={wi}>
+            <div className="wk-grid">
+              {week.map((d, i) => {
+                const dim = d.getMonth() !== cursor.getMonth();
+                return (
+                  <div
+                    key={`c${i}`}
+                    className={`wk-cell${dim ? ' dim' : ''}${sameDay(d, today) ? ' today' : ''}`}
+                    style={{ gridColumn: i + 1, gridRow: '1 / -1' }}
+                    onClick={() => onPickDay(d)}
+                  />
+                );
+              })}
+              {week.map((d, i) => (
+                <div
+                  key={`n${i}`}
+                  className={`wk-dnum${d.getMonth() !== cursor.getMonth() ? ' dim' : ''}`}
+                  style={{ gridColumn: i + 1, gridRow: 1 }}
                 >
-                  {e.emoji ? `${e.emoji} ` : ''}
-                  {e.title}
-                </span>
+                  {d.getDate()}
+                </div>
               ))}
-              {evs.length > 3 && <span className="evt-more">+{evs.length - 3}</span>}
+              {placed.map((seg, idx) => (
+                <div
+                  key={`b${idx}`}
+                  className={`evt-bar${seg.contLeft ? ' cl' : ''}${seg.contRight ? ' cr' : ''}`}
+                  style={{ gridColumn: `${seg.c0 + 1} / ${seg.c1 + 2}`, gridRow: seg.lane + 2, background: seg.e.color ?? undefined }}
+                >
+                  {seg.e.emoji ? `${seg.e.emoji} ` : ''}
+                  {seg.e.title}
+                </div>
+              ))}
+              {Object.entries(overflow).map(([c, n]) => (
+                <div key={`o${c}`} className="evt-more" style={{ gridColumn: Number(c) + 1, gridRow: MAX_LANES + 2 }}>
+                  +{n}
+                </div>
+              ))}
             </div>
           </div>
         );

@@ -1,6 +1,6 @@
 import type { IEventsRepository } from '@/repositories/events/IEventsRepository';
 import type { CalendarEvent, GoogleCalendarSummary } from '@/types';
-import { suggestEmoji } from '@/utils/eventStyle';
+import { suggestEmoji, nearestPaletteColor } from '@/utils/eventStyle';
 import type { ICalendarService } from './ICalendarService';
 
 const API = 'https://www.googleapis.com/calendar/v3';
@@ -132,7 +132,9 @@ export class GoogleCalendarService implements ICalendarService {
           const updatedAt = ev.updated ? new Date(ev.updated).toISOString() : new Date().toISOString();
           const title = ev.summary ?? '無題の予定';
           // 予定個別の色（colorId）優先、無ければカレンダーの色。
-          const color = (ev.colorId && GOOGLE_EVENT_COLORS[ev.colorId]) || colorMap[calendarId] || null;
+          // Googleの色をアプリの10色パレットの最も近い色に変換。
+          const rawColor = (ev.colorId && GOOGLE_EVENT_COLORS[ev.colorId]) || colorMap[calendarId] || null;
+          const color = rawColor ? nearestPaletteColor(rawColor) : null;
           return {
             appEventId: `google-${calendarId}-${sourceId}`,
             title,

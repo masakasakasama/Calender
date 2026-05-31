@@ -3,6 +3,7 @@ import type { CalendarEvent, EventVisibility } from '@/types';
 import { fmtDateTimeRange, fromLocalInput, toLocalInput } from '@/utils/date';
 import { EVENT_COLORS, DEFAULT_COLOR, EMOJI_PALETTE, suggestEmoji } from '@/utils/eventStyle';
 import { openInMaps } from '@/utils/maps';
+import { useSwipeDownClose } from '@/hooks/useSwipeDownClose';
 
 export interface EventFormValue {
   title: string;
@@ -53,6 +54,7 @@ export function EventModal({
   const [emojiTouched, setEmojiTouched] = useState(Boolean(event?.emoji));
   const [showEmoji, setShowEmoji] = useState(false);
   const [saving, setSaving] = useState(false);
+  const swipe = useSwipeDownClose(onClose);
 
   const set = (k: keyof EventFormValue, val: string | number | null) => setV((s) => ({ ...s, [k]: val }));
 
@@ -83,7 +85,13 @@ export function EventModal({
 
   return (
     <div className="scrim" onClick={onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="sheet"
+        ref={swipe.ref}
+        onClick={(e) => e.stopPropagation()}
+        onTouchStart={swipe.onTouchStart}
+        onTouchEnd={swipe.onTouchEnd}
+      >
         <div className="grab" />
         {editing ? (
           <>

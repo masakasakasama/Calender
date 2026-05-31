@@ -105,15 +105,24 @@ export function useRebeccaCalendars(currentUserId: string | null) {
       for (const ev of events) {
         if (cancelled) break;
         const srcId = ev.sourceGoogleEventId ?? ev.appEventId;
-        // 既に共有済み or 手動で共有解除済みのものは触らない（再共有しない）。
-        if (allLinks.some((l) => l.sourceGoogleEventId === srcId)) continue;
+        const link = allLinks.find((l) => l.sourceGoogleEventId === srcId);
         try {
-          await services.share.shareEvent({
-            sharedCalendarId,
-            source: ev,
-            byUserId: currentUserId ?? 'user-rebecca',
-            silent: true,
-          });
+          if (!link) {
+            // 未共有 → 新規共有
+            await services.share.shareEvent({
+              sharedCalendarId,
+              source: ev,
+              byUserId: currentUserId ?? 'user-rebecca',
+              silent: true,
+            });
+          } else if (link.status === 'active') {
+            // 共有済み → コピーの色/絵文字/タイトルが古ければ最新に更新
+            const copy = services.eventsRepo.getById(link.sharedGoogleEventId);
+            if (copy && (copy.color !== ev.color || copy.emoji !== ev.emoji || copy.title !== ev.title)) {
+              await services.share.refreshShared({ sharedCalendarId, source: ev, byUserId: currentUserId ?? 'user-rebecca' });
+            }
+          }
+          // link.status === 'removed' は手動解除なので何もしない
         } catch {
           /* 個別失敗は無視して継続 */
         }

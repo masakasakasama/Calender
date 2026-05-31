@@ -28,6 +28,33 @@ export function colorById(id: string | null | undefined): string {
   return EVENT_COLORS.find((c) => c.id === id)?.value ?? id ?? DEFAULT_COLOR;
 }
 
+function hexToRgb(hex: string): [number, number, number] | null {
+  const m = hex.trim().replace('#', '');
+  if (m.length !== 6) return null;
+  const n = parseInt(m, 16);
+  if (Number.isNaN(n)) return null;
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+/** 任意のhex色を、アプリの10色パレットの中で最も近い色に変換する。 */
+export function nearestPaletteColor(hex: string | null | undefined): string {
+  if (!hex) return DEFAULT_COLOR;
+  const rgb = hexToRgb(hex);
+  if (!rgb) return DEFAULT_COLOR;
+  let best = EVENT_COLORS[0];
+  let bestDist = Infinity;
+  for (const c of EVENT_COLORS) {
+    const crgb = hexToRgb(c.value);
+    if (!crgb) continue;
+    const d = (rgb[0] - crgb[0]) ** 2 + (rgb[1] - crgb[1]) ** 2 + (rgb[2] - crgb[2]) ** 2;
+    if (d < bestDist) {
+      bestDist = d;
+      best = c;
+    }
+  }
+  return best.value;
+}
+
 // --- 絵文字 ----------------------------------------------------------
 
 // 手動で選べる絵文字パレット。
