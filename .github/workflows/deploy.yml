@@ -1,9 +1,10 @@
 name: Deploy to GitHub Pages
 
-# 機能ブランチへのプッシュ、または手動実行でデプロイ。
+# main / 機能ブランチへのプッシュ、または手動実行(Run workflow)でデプロイ。
 on:
   push:
     branches:
+      - main
       - claude/couple-calendar-pwa-mvp-OEwKi
   workflow_dispatch:
 
