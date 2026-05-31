@@ -37,6 +37,9 @@ export interface RebeccaCalendarSetting {
   accessRole: 'owner' | 'writer' | 'reader';
   visibleInApp: boolean; // アプリ内レベッカ画面に表示するか
   syncEnabled: boolean; // 同期対象にするか
+  lastSyncedAt?: string | null;
+  lastSyncStatus?: 'live' | 'cached' | 'error' | null;
+  lastSyncError?: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -20,6 +20,7 @@ export function useRebeccaCalendars(currentUserId: string | null) {
   const [error, setError] = useState<string | null>(null);
   const [needsConnect, setNeedsConnect] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [syncMode, setSyncMode] = useState<'live' | 'cached' | 'disconnected'>('disconnected');
 
   // Firebase バックエンドで未連携なら、自動でGoogleにアクセスしない
   // （= 何度もログインポップアップを出さない）。連携は connect() で1回だけ行う。
@@ -48,6 +49,7 @@ export function useRebeccaCalendars(currentUserId: string | null) {
         );
         const ids = existing.filter((s) => s.syncEnabled).map((s) => s.googleCalendarId);
         setEvents(cachedSourceEvents(ids));
+        setSyncMode(existing.length > 0 ? 'cached' : 'disconnected');
         setNeedsConnect(existing.length === 0);
         setLoading(false);
         return;
@@ -81,6 +83,9 @@ export function useRebeccaCalendars(currentUserId: string | null) {
               accessRole: c.accessRole,
               visibleInApp: shouldAutoEnable,
               syncEnabled: shouldAutoEnable,
+              lastSyncedAt: null,
+              lastSyncStatus: null,
+              lastSyncError: null,
               createdAt: now,
               updatedAt: now,
             });
@@ -93,6 +98,7 @@ export function useRebeccaCalendars(currentUserId: string | null) {
           }
         }
         if (autoTarget) localStorage.setItem(AUTO_ENABLE_KEY, '1');
+        setSyncMode('live');
       } catch (e) {
         if (active) {
           setNeedsConnect(true);
@@ -109,18 +115,23 @@ export function useRebeccaCalendars(currentUserId: string | null) {
 
   useEffect(() => services.settingsRepo.subscribeRebeccaSettings(setSettings), []);
   useEffect(() => services.shareLinksRepo.subscribe(setShareLinks), []);
+
+  const syncIds = settings.filter((s) => s.syncEnabled).map((s) => s.googleCalendarId);
+  const syncIdsKey = syncIds.join('\n');
   // 共有カレンダーへの自動同期は useGoogleSync（App全体）で実行する。
 
   // 同期対象カレンダーの予定を読み込む。
   // refreshKey を依存に含め、連携(connect)直後にも再取得する。
   useEffect(() => {
-    const ids = settings.filter((s) => s.syncEnabled).map((s) => s.googleCalendarId);
+    const ids = syncIds;
     if (ids.length === 0) {
       setEvents([]);
+      setSyncMode(calendarReady() ? 'live' : 'disconnected');
       return;
     }
     if (!calendarReady()) {
       setEvents(cachedSourceEvents(ids));
+      setSyncMode('cached');
       return;
     }
     let active = true;
@@ -135,18 +146,42 @@ export function useRebeccaCalendars(currentUserId: string | null) {
             }).catch(() => ev),
           ),
         );
+        const syncedAt = new Date().toISOString();
+        await Promise.all(
+          settings
+            .filter((s) => ids.includes(s.googleCalendarId))
+            .map((s) =>
+              services.settingsRepo.upsertRebeccaSetting({
+                ...s,
+                lastSyncedAt: syncedAt,
+                lastSyncStatus: 'live',
+                lastSyncError: null,
+              }),
+            ),
+        );
         if (active) {
           setError(null);
+          setSyncMode('live');
           setEvents(evs);
         }
       })
       .catch((e) => {
-        if (active) setError(e instanceof Error ? e.message : 'Googleカレンダーの予定を取得できませんでした');
+        const message = e instanceof Error ? e.message : 'Googleカレンダーの予定を取得できませんでした';
+        void Promise.all(
+          settings
+            .filter((s) => ids.includes(s.googleCalendarId))
+            .map((s) => services.settingsRepo.upsertRebeccaSetting({ ...s, lastSyncStatus: 'error', lastSyncError: message })),
+        );
+        if (active) {
+          setSyncMode('cached');
+          setEvents(cachedSourceEvents(ids));
+          setError(message);
+        }
       });
     return () => {
       active = false;
     };
-  }, [settings, refreshKey]);
+  }, [syncIdsKey, refreshKey]);
 
   const toggleVisible = useCallback((s: RebeccaCalendarSetting, value: boolean) => {
     return services.settingsRepo.upsertRebeccaSetting({ ...s, visibleInApp: value });
@@ -220,6 +255,7 @@ export function useRebeccaCalendars(currentUserId: string | null) {
     calendars,
     settings,
     events: visibleEvents,
+    syncMode,
     loading,
     error,
     needsConnect,

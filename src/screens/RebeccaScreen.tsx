@@ -6,11 +6,17 @@ import { eventDisplayColor } from '@/utils/eventStyle';
 // レベッカ画面（レベッカ本人のみアクセス可）。
 // 既存Googleカレンダー一覧の表示/同期選択 → 予定一覧 → 共有。
 export function RebeccaScreen({ user }: { user: User }) {
-  const { calendars, settings, events, loading, error, needsConnect, connect, toggleVisible, toggleSync, isShared, shareEvent, unshareEvent } =
+  const { calendars, settings, events, syncMode, loading, error, needsConnect, connect, toggleVisible, toggleSync, isShared, shareEvent, unshareEvent } =
     useRebeccaCalendars(user.userId);
 
   const colorOf = (ev: Parameters<typeof eventDisplayColor>[0]) =>
     ev.color ?? calendars.find((c) => c.googleCalendarId === ev.sourceGoogleCalendarId)?.calendarColor ?? eventDisplayColor(ev);
+  const lastGoogleSyncAt = settings
+    .map((s) => s.lastSyncedAt)
+    .filter(Boolean)
+    .sort()
+    .at(-1);
+  const syncLabel = syncMode === 'live' ? 'Google連携中' : syncMode === 'cached' ? 'キャッシュ表示中' : '未連携';
 
   // 未連携: 自動でポップアップせず、ボタンで1回だけ連携する。
   if (needsConnect) {
@@ -36,6 +42,10 @@ export function RebeccaScreen({ user }: { user: User }) {
         🌸 レベッカの既存Googleカレンダーから、共有したい予定だけを選んでふたりのカレンダーに追加できます。
       </div>
       {error && <div className="notice error">{error}</div>}
+      <div className="notice">
+        Google同期: {syncLabel}
+        {lastGoogleSyncAt ? ` / 最終取得 ${new Date(lastGoogleSyncAt).toLocaleString()}` : ' / まだ取得なし'}
+      </div>
 
       <div className="section-title">既存Googleカレンダー（表示 / 同期）</div>
       <div className="card" style={{ marginBottom: 16 }}>

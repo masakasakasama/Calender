@@ -24,6 +24,20 @@ export function useGoogleSync(user: User | null) {
       running = true;
       try {
         const events = await services.calendar.listRebeccaEvents(ids);
+        const syncedAt = new Date().toISOString();
+        await Promise.all(
+          services.settingsRepo
+            .getRebeccaSettings()
+            .filter((s) => ids.includes(s.googleCalendarId))
+            .map((s) =>
+              services.settingsRepo.upsertRebeccaSetting({
+                ...s,
+                lastSyncedAt: syncedAt,
+                lastSyncStatus: 'live',
+                lastSyncError: null,
+              }),
+            ),
+        );
         const allLinks = services.shareLinksRepo.getAll();
         for (const ev of events) {
           await services.eventsRepo.upsert({ ...ev, updatedAt: new Date().toISOString() }).catch(() => ev);

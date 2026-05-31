@@ -13,7 +13,13 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
 
   const config = services.settingsRepo.getAppConfig();
   const googleCalId = config.googleSharedCalendarId ?? APP_CONFIG.googleSharedCalendarId;
-  const hasRebeccaCache = services.settingsRepo.getRebeccaSettings().length > 0;
+  const rebeccaSettings = services.settingsRepo.getRebeccaSettings();
+  const hasRebeccaCache = rebeccaSettings.length > 0;
+  const lastGoogleSyncAt = rebeccaSettings
+    .map((s) => s.lastSyncedAt)
+    .filter(Boolean)
+    .sort()
+    .at(-1);
   const googleConnectionStatus = services.auth.isGoogleCalendarConnected?.()
     ? '連携済み'
     : hasRebeccaCache
@@ -106,6 +112,10 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
             <div className="set-row">
               <span>この端末の連携</span>
               <span className="v">{googleConnectionStatus}</span>
+            </div>
+            <div className="set-row">
+              <span>Google最終取得</span>
+              <span className="v">{lastGoogleSyncAt ? new Date(lastGoogleSyncAt).toLocaleString() : '未取得'}</span>
             </div>
             <p className="muted" style={{ margin: '10px 0' }}>
               レベッカが一度読み込んだGoogle予定はFirestoreに保存されます。普段は再連携なしで開けて、Googleから最新に更新したい時だけ連携します。
