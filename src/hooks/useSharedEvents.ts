@@ -41,7 +41,6 @@ export function useSharedEvents(currentUserId: string | null) {
       };
       const saved = await services.eventsRepo.upsert(ev);
       await services.notifications.notify({
-        toRole: 'rebecca',
         kind: 'event_added',
         title: '共有予定が追加されました',
         body: input.title,

@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import type { User } from '@/types';
 import { useNotifications } from '@/hooks/useNotifications';
 import { fmtDateTimeRange } from '@/utils/date';
 
@@ -11,8 +10,8 @@ const KIND_LABEL: Record<string, string> = {
   reminder: 'リマインダー',
 };
 
-export function NotificationsScreen({ user }: { user: User }) {
-  const { items, permission, requestPermission, markAllRead } = useNotifications(user.role);
+export function NotificationsScreen() {
+  const { items, permission, requestPermission, markAllRead } = useNotifications();
 
   useEffect(() => {
     markAllRead();
@@ -21,10 +20,10 @@ export function NotificationsScreen({ user }: { user: User }) {
   return (
     <div>
       {permission !== 'granted' && (
-        <div className="card" style={{ marginBottom: 16 }}>
-          <div style={{ fontWeight: 700, marginBottom: 6 }}>通知を有効にする</div>
+        <div className="card soft" style={{ marginBottom: 16 }}>
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>🔔 通知をオンにする</div>
           <p className="muted" style={{ marginBottom: 12 }}>
-            予定の追加・変更・共有・リマインダーをお知らせします。ホーム画面に追加した状態が推奨です。
+            予定の追加・変更・共有・リマインダーをお知らせします。ホーム画面に追加した状態がおすすめです。
           </p>
           <button className="btn" onClick={requestPermission}>通知を許可する</button>
         </div>

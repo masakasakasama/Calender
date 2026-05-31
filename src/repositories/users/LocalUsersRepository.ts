@@ -16,8 +16,8 @@ export class LocalUsersRepository implements IUsersRepository {
     return localStore.subscribe<User[]>(KEY, [], listener);
   }
 
-  getByRole(role: User['role']): User | undefined {
-    return this.read().find((u) => u.role === role);
+  getById(userId: string): User | undefined {
+    return this.read().find((u) => u.userId === userId);
   }
 
   async upsert(user: User): Promise<User> {

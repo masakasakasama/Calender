@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import type { User, UserRole } from '@/types';
+import type { User } from '@/types';
 import { services } from '@/services/container';
 
 export function useAuth() {
@@ -15,11 +15,11 @@ export function useAuth() {
   }, []);
 
   const signInWithGoogle = useCallback(() => services.auth.signInWithGoogle(), []);
-  const signInAsRole = useCallback(
-    (role: UserRole) => services.auth.signInAsRole?.(role) ?? services.auth.signInWithGoogle(),
+  const signInMock = useCallback(
+    () => services.auth.signInMock?.() ?? services.auth.signInWithGoogle(),
     [],
   );
   const signOut = useCallback(() => services.auth.signOut(), []);
 
-  return { user, loading, signInWithGoogle, signInAsRole, signOut };
+  return { user, loading, signInWithGoogle, signInMock, signOut, backendName: services.backendName };
 }

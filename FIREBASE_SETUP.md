@@ -1,0 +1,50 @@
+# Firebase 連携セットアップ手順
+
+このアプリは Firebase の設定値が入ると、**自動で本物の Googleログイン + Firestore同期**に切り替わります（設定が無い間はデモ動作）。所要 10〜15分。
+
+## 1. Firebase プロジェクトを作る
+1. https://console.firebase.google.com/ を開く
+2. 「プロジェクトを追加」→ 名前（例: `couple-calendar`）→ 作成
+3. 左メニュー **Build → Authentication** → 「始める」→ **Sign-in method** → **Google** を有効化 → 保存
+4. 左メニュー **Build → Firestore Database** → 「データベースの作成」→ **本番モード** で開始 → ロケール選択
+
+## 2. Web アプリを登録して設定値を取得
+1. プロジェクト設定（⚙️）→ 「全般」→ 一番下「マイアプリ」→ **`</>` Web** を追加
+2. 表示される `firebaseConfig` の値を控える（apiKey, authDomain, projectId, storageBucket, messagingSenderId, appId）
+
+## 3. 許可ドメインを追加
+- Authentication → Settings → **承認済みドメイン** に `masakasakasama.github.io` を追加（GitHub Pages 用）
+
+## 4. GitHub Secrets に値を登録
+リポジトリ → **Settings → Secrets and variables → Actions → New repository secret** で以下を登録:
+
+| Secret 名 | 値 |
+|-----------|-----|
+| `VITE_FIREBASE_API_KEY` | firebaseConfig.apiKey |
+| `VITE_FIREBASE_AUTH_DOMAIN` | firebaseConfig.authDomain |
+| `VITE_FIREBASE_PROJECT_ID` | firebaseConfig.projectId |
+| `VITE_FIREBASE_STORAGE_BUCKET` | firebaseConfig.storageBucket |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | firebaseConfig.messagingSenderId |
+| `VITE_FIREBASE_APP_ID` | firebaseConfig.appId |
+| `VITE_BOYFRIEND_EMAIL` | 許可するGoogleアカウント①のメール |
+| `VITE_GIRLFRIEND_EMAIL` | レベッカのGoogleアカウントのメール |
+
+> Firebase Web の apiKey は公開前提の値なので、漏れても直ちに危険ではありません。ただし Secrets 管理が安全です。
+
+## 5. セキュリティルールを適用
+1. `firestore.rules` を開き、`allowedEmails()` の2つのメールを**実際の2人のメール**に置換
+2. Firebase Console → Firestore Database → **ルール** タブに貼り付けて「公開」
+
+## 6. 再デプロイ
+- Actions タブ → 「Deploy to GitHub Pages」→ **Run workflow**（または main へ何かpush）
+- 完了後 `https://masakasakasama.github.io/Calender/` を開くと「Googleでログイン」が本物になります
+
+## 確認
+- ログイン画面の下部が「許可されたふたりのアカウントだけが使えます」に変わっていれば Firebase 接続成功
+- 設定画面の「接続」が **Firebase（クラウド同期）** になります
+- 2台の端末で同じアカウントにログインすると、予定がリアルタイムで同期します
+
+## うまくいかないとき
+- ログインポップアップが出ない → 承認済みドメインに `masakasakasama.github.io` を追加したか確認
+- ログイン後すぐ弾かれる → Secrets のメールと実際のGoogleアカウントが一致しているか確認
+- データが保存されない → Firestore ルールを公開したか、メールが allowedEmails に入っているか確認

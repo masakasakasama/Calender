@@ -1,49 +1,52 @@
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { APP_CONFIG } from '@/config/appConfig';
 
-// 固定URLでアクセスし、Googleログイン（本番）またはユーザー切替（MVP）。
-// 許可された2人以外は resolveRole で弾かれる。
+// 固定URLでアクセスし、Googleログイン。許可された2人以外は利用不可。
+// Firebase 未設定のときは「ためしに入る」(モック) も使える。
 export function LoginScreen() {
-  const { signInWithGoogle, signInAsRole } = useAuth();
+  const { signInWithGoogle, signInMock, backendName } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const run = async (fn: () => Promise<unknown>) => {
     setError(null);
+    setBusy(true);
     try {
       await fn();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'ログインに失敗しました');
+    } finally {
+      setBusy(false);
     }
   };
 
   return (
     <div className="login">
-      <div className="logo">💜</div>
-      <h2>Couple Calendar</h2>
+      <div className="logo-badge">💗</div>
+      <h2>ふたりのカレンダー</h2>
       <p>
-        2人だけの共有カレンダー。<br />
-        Googleログインしたメールアドレスで<br />彼氏 / レベッカを自動判定します。
+        ふたりだけの予定をひとつに。<br />
+        Googleでログインしてはじめましょう。
       </p>
 
-      <button className="btn" onClick={() => run(signInWithGoogle)}>
-        Googleでログイン
-      </button>
-
-      <div className="or">― MVP: ユーザー切り替え ―</div>
       <div className="switch">
-        <button className="btn secondary" onClick={() => run(() => signInAsRole('boyfriend'))}>
-          彼氏として入る
+        <button className="btn" disabled={busy} onClick={() => run(signInWithGoogle)}>
+          <span style={{ fontSize: 16 }}>🟦</span> Googleでログイン
         </button>
-        <button className="btn rebecca" onClick={() => run(() => signInAsRole('rebecca'))}>
-          レベッカとして入る
-        </button>
+
+        {backendName === 'mock' && (
+          <button className="btn ghost" disabled={busy} onClick={() => run(signInMock)}>
+            ためしに入る（デモ）
+          </button>
+        )}
       </div>
 
-      {error && <p style={{ color: 'var(--err)', fontSize: 13 }}>{error}</p>}
+      {error && <p className="login-error">{error}</p>}
 
-      <p className="muted" style={{ marginTop: 18 }}>
-        許可ユーザー: {APP_CONFIG.boyfriendEmail} / {APP_CONFIG.girlfriendEmail}
+      <p className="login-note">
+        {backendName === 'firebase'
+          ? '許可されたふたりのアカウントだけが使えます'
+          : 'デモモードです（データはこの端末だけに保存されます）'}
       </p>
     </div>
   );

@@ -27,15 +27,6 @@ export function SharedScreen({ user, openAdd, onAddHandled }: { user: User; open
     <div>
       <CalendarView events={events} onSelectEvent={setSelected} />
 
-      <button
-        className="btn"
-        style={{ position: 'fixed', bottom: 'calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 16px)', right: 16, width: 56, height: 56, borderRadius: 28, fontSize: 26, maxWidth: 56, boxShadow: 'var(--shadow)' }}
-        onClick={() => { setSelected(null); setAdding(true); }}
-        aria-label="予定を追加"
-      >
-        ＋
-      </button>
-
       {(adding || selected) && (
         <EventModal
           event={selected}

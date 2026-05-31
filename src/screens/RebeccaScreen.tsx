@@ -14,7 +14,7 @@ export function RebeccaScreen({ user }: { user: User }) {
   return (
     <div>
       <div className="notice">
-        🔒 この画面と既存カレンダー、予定はレベッカだけが見られます。彼氏には表示されません。
+        🌸 レベッカの既存Googleカレンダーから、共有したい予定だけを選んでふたりのカレンダーに追加できます。
       </div>
 
       <div className="section-title">既存Googleカレンダー（表示 / 同期）</div>

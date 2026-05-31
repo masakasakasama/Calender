@@ -8,7 +8,7 @@ import { services } from '@/services/container';
 export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const { state, applyUpdate } = useUpdate();
   const { last, online } = useSync();
-  const { permission, requestPermission } = useNotifications(user.role);
+  const { permission, requestPermission } = useNotifications();
 
   const config = services.settingsRepo.getAppConfig();
 
@@ -19,8 +19,8 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
         <div className="set-row"><span>表示名</span><span className="v">{user.displayName}</span></div>
         <div className="set-row"><span>メール</span><span className="v">{user.email}</span></div>
         <div className="set-row">
-          <span>ロール</span>
-          <span className={`badge-role ${user.role}`}>{user.role === 'boyfriend' ? '彼氏' : 'レベッカ'}</span>
+          <span>接続</span>
+          <span className="v">{services.backendName === 'firebase' ? 'Firebase（クラウド同期）' : 'デモ（端末内）'}</span>
         </div>
       </div>
 
@@ -40,23 +40,18 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
         <div className="set-row"><span>接続状態</span><span className="v">{online ? 'オンライン' : 'オフライン'}</span></div>
         <div className="set-row"><span>共有カレンダーID</span><span className="v">{config.sharedCalendarId ?? '未設定'}</span></div>
         <div className="set-row"><span>最終同期</span><span className="v">{last ? new Date(last.at).toLocaleString() : '—'}</span></div>
-        <div className="set-row"><span>同期トークン</span><span className="v">{last?.syncToken ? '取得済み' : '—'}</span></div>
       </div>
 
-      <div className="section-title">アプリ / バージョン</div>
+      <div className="section-title">アプリ</div>
       <div className="card" style={{ marginBottom: 16 }}>
-        <div className="set-row"><span>現在のバージョン</span><span className="v">{state?.currentVersion ?? APP_CONFIG.appVersion}</span></div>
-        <div className="set-row"><span>最新バージョン</span><span className="v">{state?.latestVersion ?? '—'}</span></div>
+        <div className="set-row"><span>バージョン</span><span className="v">{state?.currentVersion ?? APP_CONFIG.appVersion}</span></div>
         <div className="set-row"><span>更新</span><span className="v">{state?.updateAvailable ? '利用可能' : '最新'}</span></div>
         {state?.updateAvailable && (
           <button className="btn" style={{ marginTop: 10 }} onClick={() => applyUpdate()}>今すぐ更新</button>
         )}
       </div>
 
-      <button className="btn outline" onClick={onSignOut}>ログアウト</button>
-      <p className="muted" style={{ textAlign: 'center', marginTop: 14 }}>
-        バックエンド: {APP_CONFIG.backend}（mock のときは Google/Firebase 非接続）
-      </p>
+      <button className="btn ghost" onClick={onSignOut}>ログアウト</button>
     </div>
   );
 }

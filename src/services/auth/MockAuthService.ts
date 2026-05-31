@@ -1,29 +1,18 @@
-import type { User, UserRole } from '@/types';
-import { APP_CONFIG, resolveRole } from '@/config/appConfig';
+import type { User } from '@/types';
+import { APP_CONFIG } from '@/config/appConfig';
 import { localStore } from '@/repositories/db/LocalStore';
 import type { IUsersRepository } from '@/repositories/users/IUsersRepository';
 import type { IAuthService } from './IAuthService';
 
 const SESSION_KEY = 'auth_session'; // 現在ログイン中の userId
 
-// MVP のモックユーザー定義（許可された2名）。
-const MOCK_USERS: Record<UserRole, Omit<User, 'createdAt' | 'updatedAt'>> = {
-  boyfriend: {
-    userId: 'user-boyfriend',
-    displayName: '彼氏',
-    email: APP_CONFIG.boyfriendEmail,
-    photoURL: null,
-    role: 'boyfriend',
-    notificationEnabled: false,
-  },
-  rebecca: {
-    userId: 'user-rebecca',
-    displayName: 'レベッカ',
-    email: APP_CONFIG.girlfriendEmail,
-    photoURL: null,
-    role: 'rebecca',
-    notificationEnabled: false,
-  },
+// MVP のモックユーザー（許可された人として扱う）。
+const MOCK_USER: Omit<User, 'createdAt' | 'updatedAt'> = {
+  userId: 'user-me',
+  displayName: 'わたし',
+  email: APP_CONFIG.allowedEmails[0],
+  photoURL: null,
+  notificationEnabled: false,
 };
 
 export class MockAuthService implements IAuthService {
@@ -32,8 +21,7 @@ export class MockAuthService implements IAuthService {
   getCurrentUser(): User | null {
     const userId = localStore.get<string | null>(SESSION_KEY, null);
     if (!userId) return null;
-    const role: UserRole = userId === MOCK_USERS.rebecca.userId ? 'rebecca' : 'boyfriend';
-    return this.users.getByRole(role) ?? null;
+    return this.users.getById(userId) ?? null;
   }
 
   onAuthStateChanged(listener: (user: User | null) => void): () => void {
@@ -42,19 +30,13 @@ export class MockAuthService implements IAuthService {
     });
   }
 
-  /** モックではデフォルトで彼氏。本番はここを OAuth に差し替える。 */
   async signInWithGoogle(): Promise<User> {
-    return this.signInAsRole('boyfriend');
+    return this.signInMock();
   }
 
-  async signInAsRole(role: UserRole): Promise<User> {
-    const base = MOCK_USERS[role];
-    // 許可ユーザー判定（本番と同じ経路を通す）。
-    if (!resolveRole(base.email)) {
-      throw new Error('このアカウントはこのアプリを利用できません');
-    }
+  async signInMock(): Promise<User> {
     const now = new Date().toISOString();
-    const user = await this.users.upsert({ ...base, createdAt: now, updatedAt: now });
+    const user = await this.users.upsert({ ...MOCK_USER, createdAt: now, updatedAt: now });
     localStore.set(SESSION_KEY, user.userId);
     return user;
   }

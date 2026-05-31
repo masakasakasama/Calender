@@ -16,8 +16,9 @@ export async function bootstrapAppData(): Promise<void> {
     await services.settingsRepo.setSharedCalendarId(sharedCalendarId);
   }
 
+  // デモ(モック)時だけサンプル予定を投入。Firebase 接続時は実データを汚さない。
   const seeded = localStore.get<boolean>(SEED_FLAG, false);
-  if (!seeded) {
+  if (services.backendName === 'mock' && !seeded) {
     for (const ev of mockInitialSharedEvents(sharedCalendarId)) {
       await services.eventsRepo.upsert(ev);
     }

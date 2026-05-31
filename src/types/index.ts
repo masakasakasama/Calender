@@ -1,17 +1,14 @@
 // =====================================================================
 // アプリ全体で共有するドメイン型。
-// 要件の「データ設計」セクションに対応。Firestore へ差し替えても
-// この型が契約として機能するよう、サービス/リポジトリはこの型で会話する。
+// 「彼氏/レベッカ」の役割区別は廃止し、許可された2人は同じ画面
+// （共有 + レベッカ）を使う。許可判定はメールアドレスのみ。
 // =====================================================================
-
-export type UserRole = 'boyfriend' | 'rebecca';
 
 export interface User {
   userId: string;
   displayName: string;
   email: string;
   photoURL: string | null;
-  role: UserRole;
   notificationEnabled: boolean;
   createdAt: string; // ISO8601
   updatedAt: string;
@@ -102,7 +99,6 @@ export type NotificationKind =
 
 export interface AppNotification {
   id: string;
-  toRole: UserRole;
   kind: NotificationKind;
   title: string;
   body: string;

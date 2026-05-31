@@ -49,12 +49,11 @@ export class ShareService {
     };
     await this.shareLinks.upsert(link);
 
-    // 彼氏に通知。
+    // 共有を通知。
     await this.notifications.notify({
-      toRole: 'boyfriend',
       kind: 'event_shared',
       title: '新しい共有予定',
-      body: `レベッカが「${source.title}」を共有しました`,
+      body: `「${source.title}」が共有されました`,
     });
   }
 

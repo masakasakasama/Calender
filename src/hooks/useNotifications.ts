@@ -1,15 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
-import type { AppNotification, UserRole } from '@/types';
+import type { AppNotification } from '@/types';
 import { services } from '@/services/container';
 
-export function useNotifications(role: UserRole | null) {
+export function useNotifications() {
   const [items, setItems] = useState<AppNotification[]>([]);
   const [permission, setPermission] = useState<NotificationPermission>(services.notifications.getPermission());
 
-  useEffect(() => {
-    if (!role) return;
-    return services.notifications.subscribe(role, setItems);
-  }, [role]);
+  useEffect(() => services.notifications.subscribe(setItems), []);
 
   const requestPermission = useCallback(async () => {
     const p = await services.notifications.requestPermission();
@@ -18,8 +15,8 @@ export function useNotifications(role: UserRole | null) {
   }, []);
 
   const markAllRead = useCallback(async () => {
-    if (role) await services.notifications.markAllRead(role);
-  }, [role]);
+    await services.notifications.markAllRead();
+  }, []);
 
   const unreadCount = items.filter((n) => !n.read).length;
 

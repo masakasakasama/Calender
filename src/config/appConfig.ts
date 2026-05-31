@@ -1,33 +1,23 @@
-import type { UserRole } from '@/types';
-
 // =====================================================================
 // 環境変数を一箇所に集約。許可ユーザー判定とバックエンド選択の単一ソース。
+// 「彼氏/レベッカ」の役割は廃止。許可された2つのメールアドレスだけが使える。
 // =====================================================================
 
 const env = import.meta.env;
 
 export const APP_CONFIG = {
   fixedCoupleId: env.VITE_FIXED_COUPLE_ID ?? 'couple-main',
-  boyfriendEmail: (env.VITE_BOYFRIEND_EMAIL ?? 'boyfriend@example.com').toLowerCase(),
-  girlfriendEmail: (env.VITE_GIRLFRIEND_EMAIL ?? 'rebecca@example.com').toLowerCase(),
-  backend: (env.VITE_BACKEND ?? 'mock') as 'mock' | 'firebase',
-  appVersion: '0.1.0',
-  buildNumber: 1,
+  // 許可する2人のメール（順不同）。本番では Google ログインのメールで判定。
+  allowedEmails: [
+    (env.VITE_BOYFRIEND_EMAIL ?? 'me@example.com').toLowerCase(),
+    (env.VITE_GIRLFRIEND_EMAIL ?? 'rebecca@example.com').toLowerCase(),
+  ],
+  appVersion: '0.2.0',
+  buildNumber: 2,
 } as const;
 
-/**
- * メールアドレスから許可ユーザー判定とロール判定を行う。
- * 本番の Google ログインでも、MVP のユーザー切り替えでも、
- * 最終的にここを通すことで「許可された2人以外は使えない」を一元管理する。
- */
-export function resolveRole(email: string | null | undefined): UserRole | null {
-  if (!email) return null;
-  const e = email.toLowerCase();
-  if (e === APP_CONFIG.boyfriendEmail) return 'boyfriend';
-  if (e === APP_CONFIG.girlfriendEmail) return 'rebecca';
-  return null;
-}
-
+/** 許可された2人のメール以外は利用不可。 */
 export function isAllowedUser(email: string | null | undefined): boolean {
-  return resolveRole(email) !== null;
+  if (!email) return false;
+  return APP_CONFIG.allowedEmails.includes(email.toLowerCase());
 }

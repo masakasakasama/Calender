@@ -1,4 +1,4 @@
-import type { AppNotification, NotificationKind, UserRole } from '@/types';
+import type { AppNotification, NotificationKind } from '@/types';
 import { localStore } from '@/repositories/db/LocalStore';
 import type { INotificationService } from './INotificationService';
 
@@ -20,16 +20,10 @@ export class MockNotificationService implements INotificationService {
     return Notification.permission;
   }
 
-  async notify(params: {
-    toRole: UserRole;
-    kind: NotificationKind;
-    title: string;
-    body: string;
-  }): Promise<void> {
+  async notify(params: { kind: NotificationKind; title: string; body: string }): Promise<void> {
     const all = localStore.get<AppNotification[]>(KEY, []);
     const item: AppNotification = {
       id: `ntf-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      toRole: params.toRole,
       kind: params.kind,
       title: params.title,
       body: params.body,
@@ -38,7 +32,6 @@ export class MockNotificationService implements INotificationService {
     };
     localStore.set(KEY, [item, ...all].slice(0, 100));
 
-    // 許可済みならローカル通知も出す（本番では Web Push/FCM に置換）。
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
       try {
         new Notification(params.title, { body: params.body });
@@ -48,17 +41,12 @@ export class MockNotificationService implements INotificationService {
     }
   }
 
-  subscribe(role: UserRole, listener: (items: AppNotification[]) => void): () => void {
-    return localStore.subscribe<AppNotification[]>(KEY, [], (all) => {
-      listener(all.filter((n) => n.toRole === role));
-    });
+  subscribe(listener: (items: AppNotification[]) => void): () => void {
+    return localStore.subscribe<AppNotification[]>(KEY, [], listener);
   }
 
-  async markAllRead(role: UserRole): Promise<void> {
+  async markAllRead(): Promise<void> {
     const all = localStore.get<AppNotification[]>(KEY, []);
-    localStore.set(
-      KEY,
-      all.map((n) => (n.toRole === role ? { ...n, read: true } : n)),
-    );
+    localStore.set(KEY, all.map((n) => ({ ...n, read: true })));
   }
 }

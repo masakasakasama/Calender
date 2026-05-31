@@ -10,8 +10,8 @@ function defaultConfig(): AppConfig {
   const now = new Date().toISOString();
   return {
     fixedCoupleId: APP_CONFIG.fixedCoupleId,
-    boyfriendEmail: APP_CONFIG.boyfriendEmail,
-    girlfriendEmail: APP_CONFIG.girlfriendEmail,
+    boyfriendEmail: APP_CONFIG.allowedEmails[0],
+    girlfriendEmail: APP_CONFIG.allowedEmails[1],
     sharedCalendarId: null,
     createdAt: now,
     updatedAt: now,
