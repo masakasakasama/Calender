@@ -27,6 +27,7 @@ export function EventCard({
           )}
           {event.syncStatus === 'pending' && <span className="chip pending">同期待ち</span>}
           {event.syncStatus === 'error' && <span className="chip error">同期エラー</span>}
+          {event.reminderMinutes != null && <span className="chip">通知 {event.reminderMinutes}分前</span>}
         </div>
       </div>
       {right && <div onClick={(e) => e.stopPropagation()}>{right}</div>}

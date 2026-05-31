@@ -11,6 +11,7 @@ import { FirestoreShareLinksRepository } from '@/repositories/firestore/Firestor
 import { MockAuthService } from '@/services/auth/MockAuthService';
 import { FirebaseAuthService } from '@/services/auth/FirebaseAuthService';
 import { MockCalendarService } from '@/services/calendar/MockCalendarService';
+import { GoogleCalendarService } from '@/services/calendar/GoogleCalendarService';
 import { MockSyncService } from '@/services/sync/MockSyncService';
 import { MockNotificationService } from '@/services/notification/MockNotificationService';
 import { ShareService } from '@/services/share/ShareService';
@@ -29,7 +30,8 @@ import type { INotificationService } from '@/services/notification/INotification
 // 依存性注入コンテナ。
 // Firebase の設定値が env に揃っていれば自動で Firebase/Firestore を使い、
 // 無ければモック実装で動く（設定前後で同じコードが動作する）。
-// Google Calendar 本体は今回もモック（後で GoogleCalendarService に差し替え）。
+// Firebase 時は Google Calendar API でレベッカ本人のカレンダーを読み、
+// 共有予定は Firestore に保存して2人で同期する。
 // =====================================================================
 export interface ServiceContainer {
   backendName: 'firebase' | 'mock';
@@ -64,9 +66,10 @@ function createContainer(): ServiceContainer {
     ? new FirebaseAuthService(usersRepo)
     : new MockAuthService(usersRepo);
 
-  // 通知は当面ローカル（端末内）。後で FCM 実装に差し替え。
   const notifications = new MockNotificationService();
-  const calendar = new MockCalendarService(eventsRepo);
+  const calendar: ICalendarService = useFirebase
+    ? new GoogleCalendarService(eventsRepo, () => auth.getGoogleAccessToken?.() ?? Promise.resolve(null))
+    : new MockCalendarService(eventsRepo);
   const sync = new MockSyncService();
   const share = new ShareService(calendar, shareLinksRepo, notifications);
 

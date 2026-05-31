@@ -2,8 +2,8 @@ rules_version = '2';
 
 // =====================================================================
 // Firestore セキュリティルール。
-// 「彼氏/レベッカ」の役割区別は廃止。許可された2人のメールだけが
-// 全データを読み書きできる。それ以外は一切アクセス不可。
+// 許可された2人のGoogleアカウントだけがアプリを利用できる。
+// partner は共有予定のみ、rebecca は共有予定 + 自分のGoogle予定設定を扱う。
 //
 // 許可メールは下の allowedEmails に直接列挙する（app_config に依存せず、
 // ルール単体で完結させて事故を防ぐ）。デプロイ時に実際の2人のメールへ置換すること。
@@ -13,9 +13,13 @@ service cloud.firestore {
 
     function allowedEmails() {
       return [
-        'me@example.com',       // ← 置換: ひとりめのGoogleアカウント
+        'partner@example.com',  // ← 置換: 共有アカウント
         'rebecca@example.com'   // ← 置換: レベッカのGoogleアカウント
       ];
+    }
+
+    function rebeccaEmail() {
+      return 'rebecca@example.com'; // ← 置換: レベッカのGoogleアカウント
     }
 
     function isAllowed() {
@@ -24,11 +28,38 @@ service cloud.firestore {
         && request.auth.token.email.lower() in allowedEmails();
     }
 
-    // すべてのアプリデータ（events / users / app_config /
-    // rebecca_calendar_settings / share_links / app_versions）は
-    // 許可された2人だけが読み書きできる。
-    match /{document=**} {
+    function isRebecca() {
+      return isAllowed() && request.auth.token.email.lower() == rebeccaEmail();
+    }
+
+    match /events/{eventId} {
+      allow read: if isAllowed()
+        && resource.data.calendarType == 'shared'
+        && resource.data.visibility == 'shared';
+      allow create, update, delete: if isAllowed()
+        && request.resource.data.calendarType == 'shared'
+        && request.resource.data.visibility == 'shared';
+    }
+
+    match /share_links/{linkId} {
+      allow read, write: if isRebecca();
+    }
+
+    match /rebecca_calendar_settings/{settingId} {
+      allow read, write: if isRebecca();
+    }
+
+    match /users/{userId} {
+      allow read, write: if isAllowed() && request.auth.uid == userId;
+    }
+
+    match /app_config/{document} {
       allow read, write: if isAllowed();
+    }
+
+    match /app_versions/{document} {
+      allow read: if isAllowed();
+      allow write: if false;
     }
   }
 }

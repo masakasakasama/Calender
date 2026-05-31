@@ -18,6 +18,7 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="set-row"><span>表示名</span><span className="v">{user.displayName}</span></div>
         <div className="set-row"><span>メール</span><span className="v">{user.email}</span></div>
+        <div className="set-row"><span>アカウント</span><span className="v">{user.role === 'rebecca' ? 'レベッカ' : '共有'}</span></div>
         <div className="set-row">
           <span>接続</span>
           <span className="v">{services.backendName === 'firebase' ? 'Firebase（クラウド同期）' : 'デモ（端末内）'}</span>
@@ -39,6 +40,8 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="set-row"><span>接続状態</span><span className="v">{online ? 'オンライン' : 'オフライン'}</span></div>
         <div className="set-row"><span>共有カレンダーID</span><span className="v">{config.sharedCalendarId ?? '未設定'}</span></div>
+        <div className="set-row"><span>共有アカウント</span><span className="v">{APP_CONFIG.partnerEmail}</span></div>
+        <div className="set-row"><span>レベッカ</span><span className="v">{APP_CONFIG.rebeccaEmail}</span></div>
         <div className="set-row"><span>最終同期</span><span className="v">{last ? new Date(last.at).toLocaleString() : '—'}</span></div>
       </div>
 

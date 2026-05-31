@@ -1,10 +1,12 @@
-import type { AppNotification, NotificationKind } from '@/types';
+import type { AppNotification, CalendarEvent, NotificationKind } from '@/types';
 import { localStore } from '@/repositories/db/LocalStore';
 import type { INotificationService } from './INotificationService';
 
 const KEY = 'notifications';
 
 export class MockNotificationService implements INotificationService {
+  private timers = new Map<string, number>();
+
   async requestPermission(): Promise<NotificationPermission> {
     if (typeof Notification === 'undefined') return 'denied';
     if (Notification.permission === 'granted') return 'granted';
@@ -39,6 +41,30 @@ export class MockNotificationService implements INotificationService {
         /* SW 経由が必要な環境では無視 */
       }
     }
+  }
+
+  scheduleEventReminder(event: CalendarEvent): void {
+    this.cancelEventReminder(event.appEventId);
+    if (event.reminderMinutes == null) return;
+    const at = new Date(event.start).getTime() - event.reminderMinutes * 60 * 1000;
+    const delay = at - Date.now();
+    if (delay <= 0 || delay > 2_147_483_647) return;
+
+    const timer = window.setTimeout(() => {
+      void this.notify({
+        kind: 'reminder',
+        title: `${event.reminderMinutes}分後の予定`,
+        body: event.title,
+      });
+      this.timers.delete(event.appEventId);
+    }, delay);
+    this.timers.set(event.appEventId, timer);
+  }
+
+  cancelEventReminder(appEventId: string): void {
+    const timer = this.timers.get(appEventId);
+    if (timer) window.clearTimeout(timer);
+    this.timers.delete(appEventId);
   }
 
   subscribe(listener: (items: AppNotification[]) => void): () => void {

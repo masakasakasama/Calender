@@ -1,4 +1,4 @@
-import { collection, doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { collection, doc, onSnapshot, setDoc, type Unsubscribe } from 'firebase/firestore';
 import type { ShareLink } from '@/types';
 import { firebaseDb } from '@/services/firebase/firebaseApp';
 import type { IShareLinksRepository } from '@/repositories/shareLinks/IShareLinksRepository';
@@ -8,18 +8,27 @@ const COL = 'share_links';
 export class FirestoreShareLinksRepository implements IShareLinksRepository {
   private cache: ShareLink[] = [];
   private listeners = new Set<(l: ShareLink[]) => void>();
+  private unsubscribe: Unsubscribe | null = null;
 
-  constructor() {
-    onSnapshot(collection(firebaseDb(), COL), (snap) => {
+  private ensureSubscribed() {
+    if (this.unsubscribe) return;
+    this.unsubscribe = onSnapshot(collection(firebaseDb(), COL), (snap) => {
       this.cache = snap.docs.map((d) => d.data() as ShareLink);
       this.listeners.forEach((l) => l(this.cache));
     });
   }
 
   subscribe(listener: (links: ShareLink[]) => void): () => void {
+    this.ensureSubscribed();
     this.listeners.add(listener);
     listener(this.cache);
-    return () => this.listeners.delete(listener);
+    return () => {
+      this.listeners.delete(listener);
+      if (this.listeners.size === 0 && this.unsubscribe) {
+        this.unsubscribe();
+        this.unsubscribe = null;
+      }
+    };
   }
 
   getAll(): ShareLink[] {

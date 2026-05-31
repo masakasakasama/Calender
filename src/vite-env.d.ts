@@ -4,6 +4,8 @@
 interface ImportMetaEnv {
   readonly VITE_BOYFRIEND_EMAIL?: string;
   readonly VITE_GIRLFRIEND_EMAIL?: string;
+  readonly VITE_PARTNER_EMAIL?: string;
+  readonly VITE_REBECCA_EMAIL?: string;
   readonly VITE_FIXED_COUPLE_ID?: string;
   readonly VITE_BACKEND?: 'mock' | 'firebase';
   readonly VITE_FIREBASE_API_KEY?: string;

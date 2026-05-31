@@ -1,13 +1,16 @@
 // =====================================================================
 // アプリ全体で共有するドメイン型。
-// 「彼氏/レベッカ」の役割区別は廃止し、許可された2人は同じ画面
-// （共有 + レベッカ）を使う。許可判定はメールアドレスのみ。
+// 許可された2人だけが使える。メールから役割を自動判定し、
+// partner は共有予定のみ、rebecca は共有予定 + 自分のGoogle予定を扱う。
 // =====================================================================
+
+export type UserRole = 'partner' | 'rebecca';
 
 export interface User {
   userId: string;
   displayName: string;
   email: string;
+  role: UserRole;
   photoURL: string | null;
   notificationEnabled: boolean;
   createdAt: string; // ISO8601
@@ -47,6 +50,7 @@ export interface CalendarEvent {
   location: string;
   start: string; // ISO8601
   end: string; // ISO8601
+  reminderMinutes: number | null;
 
   calendarType: CalendarType;
   createdBy: string; // userId

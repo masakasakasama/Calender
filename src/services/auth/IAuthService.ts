@@ -16,5 +16,8 @@ export interface IAuthService {
   /** MVP専用: モックでそのまま入る（本番では未使用）。 */
   signInMock?(): Promise<User>;
 
+  /** Google Calendar API 用のOAuthアクセストークン。取得できない場合は null。 */
+  getGoogleAccessToken?(): Promise<string | null>;
+
   signOut(): Promise<void>;
 }

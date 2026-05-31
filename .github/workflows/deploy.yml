@@ -38,6 +38,8 @@ jobs:
       - run: npm run build
         env:
           VITE_BASE: /Calender/
+          VITE_PARTNER_EMAIL: ${{ secrets.VITE_PARTNER_EMAIL }}
+          VITE_REBECCA_EMAIL: ${{ secrets.VITE_REBECCA_EMAIL }}
           VITE_BOYFRIEND_EMAIL: ${{ secrets.VITE_BOYFRIEND_EMAIL }}
           VITE_GIRLFRIEND_EMAIL: ${{ secrets.VITE_GIRLFRIEND_EMAIL }}
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}

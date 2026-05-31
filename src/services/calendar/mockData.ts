@@ -26,6 +26,7 @@ function srcEvent(p: Partial<CalendarEvent> & { title: string; start: string; en
     location: p.location ?? '',
     start: p.start,
     end: p.end,
+    reminderMinutes: null,
     calendarType: 'rebecca_source',
     createdBy: 'user-rebecca',
     updatedBy: 'user-rebecca',
@@ -58,7 +59,7 @@ export function mockInitialSharedEvents(sharedCalendarId: string): CalendarEvent
   const make = (title: string, start: string, end: string, location = ''): CalendarEvent => {
     const id = `mock-shared-${++seq}`;
     return {
-      appEventId: id, title, description: '', location, start, end,
+      appEventId: id, title, description: '', location, start, end, reminderMinutes: 15,
       calendarType: 'shared', createdBy: 'user-boyfriend', updatedBy: 'user-boyfriend',
       googleCalendarId: sharedCalendarId, googleEventId: id,
       sourceGoogleCalendarId: null, sourceGoogleEventId: null,

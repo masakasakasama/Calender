@@ -37,10 +37,12 @@ export default function App() {
     );
   }
 
-  // 役割区別は廃止。ふたりとも「共有」「レベッカ」両方を使える。
+  const isRebecca = user.role === 'rebecca';
+
+  // レベッカ本人だけが「レベッカ」画面を使える。共有画面は2人共通。
   const tabs: { key: Tab; label: string; ico: string }[] = [
     { key: 'shared', label: '共有', ico: '🗓️' },
-    { key: 'rebecca', label: 'レベッカ', ico: '🌸' },
+    ...(isRebecca ? [{ key: 'rebecca' as Tab, label: 'レベッカ', ico: '🌸' }] : []),
     { key: 'add', label: '追加', ico: '＋' },
     { key: 'notifications', label: '通知', ico: '🔔' },
     { key: 'settings', label: '設定', ico: '⚙️' },
@@ -55,6 +57,8 @@ export default function App() {
     }
   };
 
+  const activeTab: Tab = !isRebecca && tab === 'rebecca' ? 'shared' : tab;
+
   return (
     <div className="app">
       <UpdateBanner />
@@ -64,16 +68,19 @@ export default function App() {
         <h1>
           <span className="appbar-heart">💗</span> ふたりのカレンダー
         </h1>
-        <div className="who">{user.displayName}</div>
+        <div className="who">
+          {user.displayName}
+          <span className={`badge-role ${user.role}`}>{isRebecca ? 'レベッカ' : '共有'}</span>
+        </div>
       </header>
 
       <main className="content">
-        {tab === 'shared' && (
+        {activeTab === 'shared' && (
           <SharedScreen user={user} openAdd={openAdd} onAddHandled={() => setOpenAdd(false)} />
         )}
-        {tab === 'rebecca' && <RebeccaScreen user={user} />}
-        {tab === 'notifications' && <NotificationsScreen />}
-        {tab === 'settings' && <SettingsScreen user={user} onSignOut={signOut} />}
+        {activeTab === 'rebecca' && isRebecca && <RebeccaScreen user={user} />}
+        {activeTab === 'notifications' && <NotificationsScreen />}
+        {activeTab === 'settings' && <SettingsScreen user={user} onSignOut={signOut} />}
       </main>
 
       <nav className="tabbar">
@@ -82,7 +89,7 @@ export default function App() {
           return (
             <button
               key={t.key}
-              className={!isAdd && tab === t.key ? 'active' : ''}
+              className={!isAdd && activeTab === t.key ? 'active' : ''}
               onClick={() => onTab(t.key)}
             >
               <span className={isAdd ? 'ico add' : 'ico'}>{t.ico}</span>

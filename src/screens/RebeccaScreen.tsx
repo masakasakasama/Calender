@@ -5,7 +5,7 @@ import { EventCard } from '@/components/calendar/EventCard';
 // レベッカ画面（レベッカ本人のみアクセス可）。
 // 既存Googleカレンダー一覧の表示/同期選択 → 予定一覧 → 共有。
 export function RebeccaScreen({ user }: { user: User }) {
-  const { calendars, settings, events, loading, toggleVisible, toggleSync, isShared, shareEvent, unshareEvent } =
+  const { calendars, settings, events, loading, error, toggleVisible, toggleSync, isShared, shareEvent, unshareEvent } =
     useRebeccaCalendars(user.userId);
 
   const colorOf = (calId: string | null) =>
@@ -16,6 +16,7 @@ export function RebeccaScreen({ user }: { user: User }) {
       <div className="notice">
         🌸 レベッカの既存Googleカレンダーから、共有したい予定だけを選んでふたりのカレンダーに追加できます。
       </div>
+      {error && <div className="notice error">{error}</div>}
 
       <div className="section-title">既存Googleカレンダー（表示 / 同期）</div>
       <div className="card" style={{ marginBottom: 16 }}>

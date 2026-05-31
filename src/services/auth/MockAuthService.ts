@@ -1,5 +1,5 @@
 import type { User } from '@/types';
-import { APP_CONFIG } from '@/config/appConfig';
+import { APP_CONFIG, resolveRole } from '@/config/appConfig';
 import { localStore } from '@/repositories/db/LocalStore';
 import type { IUsersRepository } from '@/repositories/users/IUsersRepository';
 import type { IAuthService } from './IAuthService';
@@ -8,9 +8,10 @@ const SESSION_KEY = 'auth_session'; // 現在ログイン中の userId
 
 // MVP のモックユーザー（許可された人として扱う）。
 const MOCK_USER: Omit<User, 'createdAt' | 'updatedAt'> = {
-  userId: 'user-me',
+  userId: 'user-rebecca',
   displayName: 'わたし',
-  email: APP_CONFIG.allowedEmails[0],
+  email: APP_CONFIG.rebeccaEmail,
+  role: resolveRole(APP_CONFIG.rebeccaEmail) ?? 'rebecca',
   photoURL: null,
   notificationEnabled: false,
 };

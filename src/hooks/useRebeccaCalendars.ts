@@ -15,33 +15,40 @@ export function useRebeccaCalendars(currentUserId: string | null) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [shareLinks, setShareLinks] = useState<ShareLink[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // 既存カレンダー一覧を取得し、未登録のものを設定に同期。
   useEffect(() => {
     let active = true;
     (async () => {
-      const list = await services.calendar.listRebeccaCalendars();
-      if (!active) return;
-      setCalendars(list);
-      // 初回: 設定が無いカレンダーはデフォルト(visible=false, sync=false)で作る。
-      const existing = services.settingsRepo.getRebeccaSettings();
-      for (const c of list) {
-        if (!existing.some((s) => s.googleCalendarId === c.googleCalendarId)) {
-          const now = new Date().toISOString();
-          await services.settingsRepo.upsertRebeccaSetting({
-            userId: currentUserId ?? 'user-rebecca',
-            googleCalendarId: c.googleCalendarId,
-            calendarName: c.calendarName,
-            calendarColor: c.calendarColor,
-            accessRole: c.accessRole,
-            visibleInApp: false,
-            syncEnabled: false,
-            createdAt: now,
-            updatedAt: now,
-          });
+      try {
+        setError(null);
+        const list = await services.calendar.listRebeccaCalendars();
+        if (!active) return;
+        setCalendars(list);
+        // 初回: 設定が無いカレンダーはデフォルト(visible=false, sync=false)で作る。
+        const existing = services.settingsRepo.getRebeccaSettings();
+        for (const c of list) {
+          if (!existing.some((s) => s.googleCalendarId === c.googleCalendarId)) {
+            const now = new Date().toISOString();
+            await services.settingsRepo.upsertRebeccaSetting({
+              userId: currentUserId ?? 'user-rebecca',
+              googleCalendarId: c.googleCalendarId,
+              calendarName: c.calendarName,
+              calendarColor: c.calendarColor,
+              accessRole: c.accessRole,
+              visibleInApp: false,
+              syncEnabled: false,
+              createdAt: now,
+              updatedAt: now,
+            });
+          }
         }
+      } catch (e) {
+        if (active) setError(e instanceof Error ? e.message : 'Googleカレンダーを取得できませんでした');
+      } finally {
+        if (active) setLoading(false);
       }
-      setLoading(false);
     })();
     return () => {
       active = false;
@@ -59,9 +66,17 @@ export function useRebeccaCalendars(currentUserId: string | null) {
       return;
     }
     let active = true;
-    services.calendar.listRebeccaEvents(ids).then((evs) => {
-      if (active) setEvents(evs);
-    });
+    services.calendar
+      .listRebeccaEvents(ids)
+      .then((evs) => {
+        if (active) {
+          setError(null);
+          setEvents(evs);
+        }
+      })
+      .catch((e) => {
+        if (active) setError(e instanceof Error ? e.message : 'Googleカレンダーの予定を取得できませんでした');
+      });
     return () => {
       active = false;
     };
@@ -108,6 +123,7 @@ export function useRebeccaCalendars(currentUserId: string | null) {
     settings,
     events: visibleEvents,
     loading,
+    error,
     toggleVisible,
     toggleSync,
     isShared,

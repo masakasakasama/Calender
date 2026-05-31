@@ -49,6 +49,7 @@ export class MockCalendarService implements ICalendarService {
       location: source.location,
       start: source.start,
       end: source.end,
+      reminderMinutes: source.reminderMinutes,
       calendarType: 'shared',
       createdBy: byUserId,
       updatedBy: byUserId,

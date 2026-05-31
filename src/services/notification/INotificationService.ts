@@ -1,4 +1,4 @@
-import type { AppNotification, NotificationKind } from '@/types';
+import type { AppNotification, CalendarEvent, NotificationKind } from '@/types';
 
 // =====================================================================
 // 通知サービス契約（10. 通知処理）。
@@ -10,6 +10,8 @@ export interface INotificationService {
   getPermission(): NotificationPermission;
 
   notify(params: { kind: NotificationKind; title: string; body: string }): Promise<void>;
+  scheduleEventReminder(event: CalendarEvent): void;
+  cancelEventReminder(appEventId: string): void;
 
   subscribe(listener: (items: AppNotification[]) => void): () => void;
   markAllRead(): Promise<void>;

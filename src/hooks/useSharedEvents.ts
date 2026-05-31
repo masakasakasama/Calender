@@ -18,7 +18,14 @@ export function useSharedEvents(currentUserId: string | null) {
   const sharedCalendarId = services.settingsRepo.getAppConfig().sharedCalendarId;
 
   const createEvent = useCallback(
-    async (input: { title: string; description: string; location: string; start: string; end: string }) => {
+    async (input: {
+      title: string;
+      description: string;
+      location: string;
+      start: string;
+      end: string;
+      reminderMinutes: number | null;
+    }) => {
       const now = new Date().toISOString();
       const uid = currentUserId ?? 'unknown';
       const ev: CalendarEvent = {
@@ -40,6 +47,7 @@ export function useSharedEvents(currentUserId: string | null) {
         deletedAt: null,
       };
       const saved = await services.eventsRepo.upsert(ev);
+      services.notifications.scheduleEventReminder(saved);
       await services.notifications.notify({
         kind: 'event_added',
         title: '共有予定が追加されました',
@@ -53,13 +61,16 @@ export function useSharedEvents(currentUserId: string | null) {
   const updateEvent = useCallback(
     async (ev: CalendarEvent) => {
       const uid = currentUserId ?? 'unknown';
-      return services.eventsRepo.upsert({ ...ev, updatedBy: uid, syncStatus: 'pending' });
+      const saved = await services.eventsRepo.upsert({ ...ev, updatedBy: uid, syncStatus: 'pending' });
+      services.notifications.scheduleEventReminder(saved);
+      return saved;
     },
     [currentUserId],
   );
 
   const deleteEvent = useCallback(
     async (appEventId: string) => {
+      services.notifications.cancelEventReminder(appEventId);
       await services.eventsRepo.softDelete(appEventId, currentUserId ?? 'unknown');
     },
     [currentUserId],

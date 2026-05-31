@@ -8,6 +8,7 @@ export interface EventFormValue {
   location: string;
   start: string;
   end: string;
+  reminderMinutes: number | null;
 }
 
 // 予定の詳細表示 + 追加/編集/削除。
@@ -35,10 +36,11 @@ export function EventModal({
     location: event?.location ?? initial?.location ?? '',
     start: event?.start ?? initial?.start ?? now.toISOString(),
     end: event?.end ?? initial?.end ?? later.toISOString(),
+    reminderMinutes: event?.reminderMinutes ?? initial?.reminderMinutes ?? 15,
   });
   const [saving, setSaving] = useState(false);
 
-  const set = (k: keyof EventFormValue, val: string) => setV((s) => ({ ...s, [k]: val }));
+  const set = (k: keyof EventFormValue, val: string | number | null) => setV((s) => ({ ...s, [k]: val }));
 
   const submit = async () => {
     if (!v.title.trim() || !onSave) return;
@@ -78,6 +80,20 @@ export function EventModal({
               <label>メモ</label>
               <textarea value={v.description} onChange={(e) => set('description', e.target.value)} placeholder="任意" />
             </div>
+            <div className="field">
+              <label>通知</label>
+              <select
+                value={v.reminderMinutes ?? 'none'}
+                onChange={(e) => set('reminderMinutes', e.target.value === 'none' ? null : Number(e.target.value))}
+              >
+                <option value="none">通知しない</option>
+                <option value="5">5分前</option>
+                <option value="10">10分前</option>
+                <option value="15">15分前</option>
+                <option value="30">30分前</option>
+                <option value="60">1時間前</option>
+              </select>
+            </div>
             <button className="btn" disabled={saving || !v.title.trim()} onClick={submit}>
               {saving ? '保存中…' : '保存'}
             </button>
@@ -88,6 +104,7 @@ export function EventModal({
             <p className="muted">{fmtDateTimeRange(v.start, v.end)}</p>
             {v.location && <p style={{ marginTop: 8 }}>📍 {v.location}</p>}
             {v.description && <p style={{ marginTop: 8, whiteSpace: 'pre-wrap' }}>{v.description}</p>}
+            {v.reminderMinutes != null && <p className="muted" style={{ marginTop: 8 }}>通知: {v.reminderMinutes}分前</p>}
             {!readOnly && (
               <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
                 <button className="btn secondary" onClick={() => setEditing(true)}>編集</button>
