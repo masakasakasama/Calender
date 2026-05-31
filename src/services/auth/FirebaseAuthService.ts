@@ -83,10 +83,20 @@ export class FirebaseAuthService implements IAuthService {
     return user;
   }
 
+  /**
+   * Googleカレンダー用アクセストークン。
+   * 既にこのセッションで取得済みなら再利用する。
+   * 未取得のときは「自動ではポップアップを出さない」（=何度もログインを防ぐ）。
+   * 明示的な連携が必要なときは connectGoogleCalendar() を使う。
+   */
   async getGoogleAccessToken(): Promise<string | null> {
-    if (this.googleAccessToken) return this.googleAccessToken;
+    return this.googleAccessToken;
+  }
+
+  /** ユーザー操作で1回だけ Google カレンダー連携（同意）を行う。 */
+  async connectGoogleCalendar(): Promise<boolean> {
+    if (this.googleAccessToken) return true;
     const auth = firebaseAuth();
-    if (!auth.currentUser) return null;
     const cred = await signInWithPopup(auth, makeProvider(true));
     if (!isAllowedUser(cred.user.email)) {
       await fbSignOut(firebaseAuth());
@@ -97,7 +107,11 @@ export class FirebaseAuthService implements IAuthService {
     const user = toAppUser(cred.user);
     this.current = user;
     await this.users.upsert(user).catch(() => {});
-    return this.googleAccessToken;
+    return this.googleAccessToken != null;
+  }
+
+  isGoogleCalendarConnected(): boolean {
+    return this.googleAccessToken != null;
   }
 
   async signOut(): Promise<void> {

@@ -5,11 +5,29 @@ import { EventCard } from '@/components/calendar/EventCard';
 // レベッカ画面（レベッカ本人のみアクセス可）。
 // 既存Googleカレンダー一覧の表示/同期選択 → 予定一覧 → 共有。
 export function RebeccaScreen({ user }: { user: User }) {
-  const { calendars, settings, events, loading, error, toggleVisible, toggleSync, isShared, shareEvent, unshareEvent } =
+  const { calendars, settings, events, loading, error, needsConnect, connect, toggleVisible, toggleSync, isShared, shareEvent, unshareEvent } =
     useRebeccaCalendars(user.userId);
 
   const colorOf = (calId: string | null) =>
     calendars.find((c) => c.googleCalendarId === calId)?.calendarColor ?? 'var(--rebecca)';
+
+  // 未連携: 自動でポップアップせず、ボタンで1回だけ連携する。
+  if (needsConnect) {
+    return (
+      <div>
+        <div className="notice">
+          🌸 レベッカのGoogleカレンダーを読み込むには、最初に一度だけ連携が必要です。
+        </div>
+        <div className="card" style={{ textAlign: 'center' }}>
+          <p className="muted" style={{ marginBottom: 14 }}>
+            「連携する」を押すとGoogleの画面が開きます。<br />一度連携すれば、このセッション中はもう聞かれません。
+          </p>
+          <button className="btn" onClick={connect}>Googleカレンダーを連携する</button>
+          {error && <p className="login-error" style={{ marginTop: 12 }}>{error}</p>}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>

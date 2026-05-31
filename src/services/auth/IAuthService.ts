@@ -16,8 +16,14 @@ export interface IAuthService {
   /** MVP専用: モックでそのまま入る（本番では未使用）。 */
   signInMock?(): Promise<User>;
 
-  /** Google Calendar API 用のOAuthアクセストークン。取得できない場合は null。 */
+  /** Google Calendar API 用のOAuthアクセストークン。未連携なら null（自動ポップアップしない）。 */
   getGoogleAccessToken?(): Promise<string | null>;
+
+  /** ユーザー操作でGoogleカレンダー連携（同意ポップアップ）を1回だけ行う。 */
+  connectGoogleCalendar?(): Promise<boolean>;
+
+  /** 現在Googleカレンダー連携済みか。 */
+  isGoogleCalendarConnected?(): boolean;
 
   signOut(): Promise<void>;
 }

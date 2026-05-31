@@ -18,13 +18,26 @@ export function useRebeccaCalendars(currentUserId: string | null) {
   const [shareLinks, setShareLinks] = useState<ShareLink[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [needsConnect, setNeedsConnect] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  // Firebase バックエンドで未連携なら、自動でGoogleにアクセスしない
+  // （= 何度もログインポップアップを出さない）。連携は connect() で1回だけ行う。
+  const calendarReady = (): boolean =>
+    services.auth.isGoogleCalendarConnected ? services.auth.isGoogleCalendarConnected() : true;
 
   // 既存カレンダー一覧を取得し、未登録のものを設定に同期。
   useEffect(() => {
     let active = true;
     (async () => {
+      if (!calendarReady()) {
+        setNeedsConnect(true);
+        setLoading(false);
+        return;
+      }
       try {
         setError(null);
+        setNeedsConnect(false);
         const list = await services.calendar.listRebeccaCalendars();
         if (!active) return;
         setCalendars(list);
@@ -64,7 +77,10 @@ export function useRebeccaCalendars(currentUserId: string | null) {
         }
         if (autoTarget) localStorage.setItem(AUTO_ENABLE_KEY, '1');
       } catch (e) {
-        if (active) setError(e instanceof Error ? e.message : 'Googleカレンダーを取得できませんでした');
+        if (active) {
+          setNeedsConnect(true);
+          setError(e instanceof Error ? e.message : 'Googleカレンダーを取得できませんでした');
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -72,7 +88,7 @@ export function useRebeccaCalendars(currentUserId: string | null) {
     return () => {
       active = false;
     };
-  }, [currentUserId]);
+  }, [currentUserId, refreshKey]);
 
   useEffect(() => services.settingsRepo.subscribeRebeccaSettings(setSettings), []);
   useEffect(() => services.shareLinksRepo.subscribe(setShareLinks), []);
@@ -80,7 +96,7 @@ export function useRebeccaCalendars(currentUserId: string | null) {
   // 同期対象カレンダーの予定を読み込む。
   useEffect(() => {
     const ids = settings.filter((s) => s.syncEnabled).map((s) => s.googleCalendarId);
-    if (ids.length === 0) {
+    if (ids.length === 0 || !calendarReady()) {
       setEvents([]);
       return;
     }
@@ -133,6 +149,21 @@ export function useRebeccaCalendars(currentUserId: string | null) {
     await services.share.unshareEvent(ev.sourceGoogleEventId ?? ev.appEventId);
   }, []);
 
+  // ユーザー操作で1回だけGoogleカレンダー連携。成功したら再読み込み。
+  const connect = useCallback(async () => {
+    setError(null);
+    try {
+      const ok = (await services.auth.connectGoogleCalendar?.()) ?? false;
+      if (ok) {
+        setNeedsConnect(false);
+        setLoading(true);
+        setRefreshKey((k) => k + 1);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Googleカレンダー連携に失敗しました');
+    }
+  }, []);
+
   // 表示対象（visibleInApp=true）カレンダーの予定だけ画面に出す。
   const visibleIds = new Set(settings.filter((s) => s.visibleInApp).map((s) => s.googleCalendarId));
   const visibleEvents = events.filter((e) => visibleIds.has(e.sourceGoogleCalendarId ?? ''));
@@ -143,6 +174,8 @@ export function useRebeccaCalendars(currentUserId: string | null) {
     events: visibleEvents,
     loading,
     error,
+    needsConnect,
+    connect,
     toggleVisible,
     toggleSync,
     isShared,
