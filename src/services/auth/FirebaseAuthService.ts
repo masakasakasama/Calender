@@ -58,12 +58,44 @@ export class FirebaseAuthService implements IAuthService {
     if (typeof localStorage === 'undefined') return null;
     try {
       const raw = localStorage.getItem(APP_USER_CACHE_KEY);
-      if (!raw) return null;
-      const user = JSON.parse(raw) as User;
-      return isAllowedUser(user.email) ? user : null;
+      if (raw) {
+        const user = JSON.parse(raw) as User;
+        if (isAllowedUser(user.email)) return user;
+      }
     } catch {
-      return null;
+      // Fall through to Firebase's own persisted auth snapshot.
     }
+
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key?.startsWith('firebase:authUser:')) continue;
+      try {
+        const stored = JSON.parse(localStorage.getItem(key) ?? '{}') as {
+          uid?: string;
+          email?: string;
+          displayName?: string;
+          photoURL?: string | null;
+        };
+        const role = resolveRole(stored.email);
+        if (!stored.email || !stored.uid || !role || !isAllowedUser(stored.email)) continue;
+        const now = new Date().toISOString();
+        const user: User = {
+          userId: stored.uid,
+          displayName: stored.displayName ?? stored.email,
+          email: stored.email.toLowerCase(),
+          role,
+          photoURL: stored.photoURL ?? null,
+          notificationEnabled: false,
+          createdAt: now,
+          updatedAt: now,
+        };
+        this.rememberCachedUser(user);
+        return user;
+      } catch {
+        // Keep scanning other Firebase auth slots.
+      }
+    }
+    return null;
   }
 
   private rememberCachedUser(user: User | null): void {

@@ -2,11 +2,13 @@ import { collection, doc, onSnapshot, setDoc, type Unsubscribe } from 'firebase/
 import type { ShareLink } from '@/types';
 import { firebaseDb } from '@/services/firebase/firebaseApp';
 import type { IShareLinksRepository } from '@/repositories/shareLinks/IShareLinksRepository';
+import { localStore } from '@/repositories/db/LocalStore';
 
 const COL = 'share_links';
+const CACHE_KEY = 'firestore_share_links_cache';
 
 export class FirestoreShareLinksRepository implements IShareLinksRepository {
-  private cache: ShareLink[] = [];
+  private cache: ShareLink[] = localStore.get<ShareLink[]>(CACHE_KEY, []);
   private listeners = new Set<(l: ShareLink[]) => void>();
   private unsubscribe: Unsubscribe | null = null;
 
@@ -14,6 +16,7 @@ export class FirestoreShareLinksRepository implements IShareLinksRepository {
     if (this.unsubscribe) return;
     this.unsubscribe = onSnapshot(collection(firebaseDb(), COL), (snap) => {
       this.cache = snap.docs.map((d) => d.data() as ShareLink);
+      localStore.set(CACHE_KEY, this.cache);
       this.listeners.forEach((l) => l(this.cache));
     });
   }
@@ -40,10 +43,14 @@ export class FirestoreShareLinksRepository implements IShareLinksRepository {
   }
 
   async upsert(link: ShareLink): Promise<void> {
+    this.cache = [...this.cache.filter((l) => l.id !== link.id), link];
+    localStore.set(CACHE_KEY, this.cache);
     await setDoc(doc(firebaseDb(), COL, link.id), link, { merge: true });
   }
 
   async markRemoved(id: string): Promise<void> {
+    this.cache = this.cache.map((l) => (l.id === id ? { ...l, status: 'removed', unsharedAt: new Date().toISOString() } : l));
+    localStore.set(CACHE_KEY, this.cache);
     await setDoc(
       doc(firebaseDb(), COL, id),
       { status: 'removed', unsharedAt: new Date().toISOString() },
