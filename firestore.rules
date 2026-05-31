@@ -1,0 +1,75 @@
+rules_version = '2';
+
+// =====================================================================
+// 本番(Firestore)に差し替えたときのセキュリティルール雛形。
+// 要件の権限制御を表現する:
+//   - 許可された2アカウント以外は一切アクセス不可
+//   - 彼氏は rebecca_calendar_settings を読めない
+//   - 彼氏は calendarType == 'rebecca_source' の events を読めない
+//   - レベッカが共有した予定(shared)だけ彼氏に見える
+// メールアドレスは app_config に保存した値で判定する。
+// =====================================================================
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function config() {
+      return get(/databases/$(database)/documents/app_config/main).data;
+    }
+    function email() {
+      return request.auth.token.email.lower();
+    }
+    function isBoyfriend() {
+      return isSignedIn() && email() == config().boyfriendEmail;
+    }
+    function isRebecca() {
+      return isSignedIn() && email() == config().girlfriendEmail;
+    }
+    function isAllowed() {
+      return isBoyfriend() || isRebecca();
+    }
+
+    // app_config: 許可ユーザーは読み取り可、書き込みは管理(関数/コンソール)想定。
+    match /app_config/{id} {
+      allow read: if isAllowed();
+      allow write: if false; // Functions/Admin SDK 経由のみ
+    }
+
+    // users: 本人のみ書き込み、許可ユーザーは相互に最小限の読み取り。
+    match /users/{userId} {
+      allow read: if isAllowed();
+      allow write: if isSignedIn() && request.auth.uid == userId && isAllowed();
+    }
+
+    // rebecca_calendar_settings: レベッカ本人のみ読み書き（彼氏は読めない）。
+    match /rebecca_calendar_settings/{id} {
+      allow read, write: if isRebecca();
+    }
+
+    // events: 共有予定は両者、rebecca_source はレベッカのみ。
+    match /events/{id} {
+      allow read: if (resource.data.calendarType == 'shared'
+                      && resource.data.visibility == 'shared'
+                      && isAllowed())
+                   || (resource.data.calendarType == 'rebecca_source' && isRebecca());
+      allow create: if isAllowed()
+                    && (request.resource.data.calendarType == 'shared' || isRebecca());
+      allow update, delete: if isAllowed()
+                            && (resource.data.calendarType == 'shared' || isRebecca());
+    }
+
+    // share_links: レベッカが作成・管理。共有状態の根拠データ。
+    match /share_links/{id} {
+      allow read: if isAllowed();
+      allow write: if isRebecca();
+    }
+
+    // app_versions: 全許可ユーザーが読み取り、書き込みは管理のみ。
+    match /app_versions/{id} {
+      allow read: if isAllowed();
+      allow write: if false;
+    }
+  }
+}
