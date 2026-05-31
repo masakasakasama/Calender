@@ -46,9 +46,9 @@ service cloud.firestore {
     }
 
     match /events/{eventId} {
-      allow read: if isCalendarAllowed()
-        && resource.data.calendarType == 'shared'
-        && resource.data.visibility == 'shared';
+      // 一覧購読(onSnapshot)が拒否されないよう、読み取りは許可ユーザー全体に。
+      // events には共有予定のみ保存される（レベッカの非共有はFirestoreに入れない）。
+      allow read: if isCalendarAllowed();
       allow create, update, delete: if isCalendarAllowed()
         && request.resource.data.calendarType == 'shared'
         && request.resource.data.visibility == 'shared';
