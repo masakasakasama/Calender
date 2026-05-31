@@ -16,6 +16,7 @@ import type { IAuthService } from './IAuthService';
 
 const GCAL_TOKEN_KEY = 'calender_google_calendar_access_token';
 const GCAL_TOKEN_EXPIRES_KEY = 'calender_google_calendar_access_token_expires_at';
+const APP_USER_CACHE_KEY = 'calender_last_signed_in_user';
 
 // =====================================================================
 // 本番の Googleログイン。Firebase Auth + GoogleAuthProvider。
@@ -48,10 +49,31 @@ function toAppUser(fb: FbUser): User {
 }
 
 export class FirebaseAuthService implements IAuthService {
-  private current: User | null = null;
+  private current: User | null = this.restoreCachedUser();
   private googleAccessToken: string | null = this.restoreGoogleAccessToken();
 
   constructor(private users: IUsersRepository) {}
+
+  private restoreCachedUser(): User | null {
+    if (typeof localStorage === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem(APP_USER_CACHE_KEY);
+      if (!raw) return null;
+      const user = JSON.parse(raw) as User;
+      return isAllowedUser(user.email) ? user : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private rememberCachedUser(user: User | null): void {
+    if (typeof localStorage === 'undefined') return;
+    if (!user) {
+      localStorage.removeItem(APP_USER_CACHE_KEY);
+      return;
+    }
+    localStorage.setItem(APP_USER_CACHE_KEY, JSON.stringify(user));
+  }
 
   private restoreGoogleAccessToken(): string | null {
     if (typeof sessionStorage === 'undefined') return null;
@@ -86,13 +108,14 @@ export class FirebaseAuthService implements IAuthService {
       if (fb && isAllowedUser(fb.email)) {
         const user = toAppUser(fb);
         this.current = user;
+        this.rememberCachedUser(user);
         // users コレクションへ自分を upsert（プロフィール同期）。
         await this.users.upsert(user).catch(() => {});
         listener(user);
       } else {
         if (fb) await fbSignOut(firebaseAuth()).catch(() => {}); // 許可外は即サインアウト
-        this.current = null;
-        listener(null);
+        this.current = this.restoreCachedUser();
+        listener(this.current);
       }
     });
   }
@@ -107,6 +130,7 @@ export class FirebaseAuthService implements IAuthService {
     }
     const user = toAppUser(cred.user);
     this.current = user;
+    this.rememberCachedUser(user);
     await this.users.upsert(user).catch(() => {});
     return user;
   }
@@ -135,6 +159,7 @@ export class FirebaseAuthService implements IAuthService {
     this.rememberGoogleAccessToken(oauth?.accessToken ?? null);
     const user = toAppUser(cred.user);
     this.current = user;
+    this.rememberCachedUser(user);
     await this.users.upsert(user).catch(() => {});
     // 連携直後に自動同期をキック。
     if (this.googleAccessToken && typeof window !== 'undefined') {
@@ -149,6 +174,7 @@ export class FirebaseAuthService implements IAuthService {
 
   async signOut(): Promise<void> {
     this.current = null;
+    this.rememberCachedUser(null);
     this.rememberGoogleAccessToken(null);
     await fbSignOut(firebaseAuth());
   }
