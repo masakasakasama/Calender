@@ -125,8 +125,9 @@ input, textarea, select { font-family: inherit; font-size: 16px; }
 }
 .event-card::before {
   content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 5px;
-  background: linear-gradient(var(--primary), var(--lavender)); border-radius: 0 4px 4px 0;
+  background: var(--evt-color, linear-gradient(var(--primary), var(--lavender))); border-radius: 0 4px 4px 0;
 }
+.eloc-link { background: none; border: none; padding: 0; text-align: left; cursor: pointer; text-decoration: underline dotted; }
 .event-card .etime { font-size: 12px; color: var(--primary-d); font-weight: 600; }
 .event-card .etitle { font-size: 15.5px; font-weight: 700; margin: 3px 0; color: var(--text); }
 .event-card .eloc { font-size: 12px; color: var(--text-soft); }
@@ -258,3 +259,50 @@ input, textarea, select { font-family: inherit; font-size: 16px; }
 .set-row:last-child { border: none; }
 .set-row .v { color: var(--text-soft); font-weight: 600; }
 .day-list h4 { font-size: 12px; font-weight: 700; color: var(--primary-d); margin: 16px 4px 8px; }
+
+/* ---- 絵文字 / タイトル ---- */
+.title-row { display: flex; gap: 10px; align-items: center; }
+.title-row input { flex: 1; }
+.emoji-btn {
+  width: 50px; height: 50px; border-radius: 14px; font-size: 24px;
+  background: var(--surface-3); display: flex; align-items: center; justify-content: center;
+  border: 1.5px solid var(--line); flex-shrink: 0;
+}
+.emoji-grid {
+  display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; margin-top: 10px;
+  background: var(--surface-3); border-radius: 14px; padding: 10px;
+}
+.emoji-pick {
+  aspect-ratio: 1; border-radius: 10px; font-size: 20px; background: #fff;
+  display: flex; align-items: center; justify-content: center; transition: transform .1s;
+}
+.emoji-pick:active { transform: scale(.88); }
+.emoji-pick.on { outline: 2px solid var(--primary); }
+
+/* ---- カラーピッカー ---- */
+.color-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.color-dot {
+  width: 32px; height: 32px; border-radius: 50%; border: 3px solid #fff;
+  box-shadow: 0 0 0 1px var(--line); transition: transform .12s;
+}
+.color-dot:active { transform: scale(.9); }
+.color-dot.on { box-shadow: 0 0 0 2.5px var(--text); transform: scale(1.12); }
+
+/* ---- 場所 / 地図 ---- */
+.loc-row { display: flex; gap: 8px; align-items: stretch; }
+.loc-row input { flex: 1; }
+.loc-row .btn.sm { flex-shrink: 0; white-space: nowrap; }
+.loc-link {
+  display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin-top: 10px; padding: 10px 14px; border-radius: 12px;
+  background: var(--surface-3); color: var(--text); font-size: 14px; font-weight: 600; width: 100%;
+  text-align: left;
+}
+.loc-open { color: var(--primary-d); font-size: 12px; font-weight: 700; }
+
+/* ---- スワイプ切替アニメーション ---- */
+.cal-swipe { touch-action: pan-y; }
+.cal-swipe.slide-l { animation: slideL .22s ease; }
+.cal-swipe.slide-r { animation: slideR .22s ease; }
+@keyframes slideL { from { opacity: .3; transform: translateX(24px);} to { opacity: 1; transform: translateX(0);} }
+@keyframes slideR { from { opacity: .3; transform: translateX(-24px);} to { opacity: 1; transform: translateX(0);} }

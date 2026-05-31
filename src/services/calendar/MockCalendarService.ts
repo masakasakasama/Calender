@@ -50,6 +50,8 @@ export class MockCalendarService implements ICalendarService {
       start: source.start,
       end: source.end,
       reminderMinutes: source.reminderMinutes,
+      color: source.color ?? null,
+      emoji: source.emoji ?? null,
       calendarType: 'shared',
       createdBy: byUserId,
       updatedBy: byUserId,

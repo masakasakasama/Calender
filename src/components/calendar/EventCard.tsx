@@ -1,5 +1,7 @@
 import type { CalendarEvent } from '@/types';
 import { fmtDateTimeRange } from '@/utils/date';
+import { DEFAULT_COLOR } from '@/utils/eventStyle';
+import { openInMaps } from '@/utils/maps';
 
 // 共有済み/非共有/同期エラーが一目で分かる予定カード。
 export function EventCard({
@@ -13,12 +15,28 @@ export function EventCard({
   onClick?: () => void;
   right?: React.ReactNode;
 }) {
+  const color = accent ?? event.color ?? DEFAULT_COLOR;
   return (
-    <div className="event-card" style={accent ? { borderLeftColor: accent } : undefined} onClick={onClick}>
+    <div
+      className="event-card"
+      style={{ ['--evt-color' as string]: color }}
+      onClick={onClick}
+    >
       <div style={{ flex: 1 }}>
         <div className="etime">{fmtDateTimeRange(event.start, event.end)}</div>
-        <div className="etitle">{event.title}</div>
-        {event.location && <div className="eloc">📍 {event.location}</div>}
+        <div className="etitle">
+          {event.emoji && <span style={{ marginRight: 6 }}>{event.emoji}</span>}
+          {event.title}
+        </div>
+        {event.location && (
+          <button
+            type="button"
+            className="eloc eloc-link"
+            onClick={(e) => { e.stopPropagation(); openInMaps(event.location); }}
+          >
+            📍 {event.location}
+          </button>
+        )}
         <div className="chips">
           {event.visibility === 'shared' ? (
             <span className="chip shared">共有</span>

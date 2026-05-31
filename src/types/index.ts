@@ -51,6 +51,8 @@ export interface CalendarEvent {
   start: string; // ISO8601
   end: string; // ISO8601
   reminderMinutes: number | null;
+  color?: string | null; // 色分け（EVENT_COLORS の value）
+  emoji?: string | null; // タイトル先頭に表示する絵文字
 
   calendarType: CalendarType;
   createdBy: string; // userId

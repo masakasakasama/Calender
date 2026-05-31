@@ -23,13 +23,29 @@ export function CalendarView({
 }) {
   const [mode, setMode] = useState<Mode>('month');
   const [cursor, setCursor] = useState<Date>(new Date());
+  const [slide, setSlide] = useState<'l' | 'r' | null>(null);
 
   const eventsOn = (d: Date) => events.filter((e) => sameDay(new Date(e.start), d)).sort((a, b) => a.start.localeCompare(b.start));
 
   const move = (dir: number) => {
+    setSlide(dir > 0 ? 'l' : 'r');
     if (mode === 'month') setCursor(addMonths(cursor, dir));
     else if (mode === 'week') setCursor(addDays(cursor, dir * 7));
     else setCursor(addDays(cursor, dir));
+  };
+
+  // 左右スワイプで前後の月/週/日へ移動。
+  const touch = { x: 0, y: 0 };
+  const onTouchStart = (e: React.TouchEvent) => {
+    touch.x = e.touches[0].clientX;
+    touch.y = e.touches[0].clientY;
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const dx = e.changedTouches[0].clientX - touch.x;
+    const dy = e.changedTouches[0].clientY - touch.y;
+    if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+      move(dx < 0 ? 1 : -1); // 左スワイプ=次、右スワイプ=前
+    }
   };
 
   const title =
@@ -54,9 +70,17 @@ export function CalendarView({
         ))}
       </div>
 
-      {mode === 'month' && <MonthView cursor={cursor} eventsOn={eventsOn} onPickDay={(d) => { setCursor(d); setMode('day'); }} />}
-      {mode === 'week' && <WeekView cursor={cursor} eventsOn={eventsOn} onSelectEvent={onSelectEvent} />}
-      {mode === 'day' && <DayList day={cursor} events={eventsOn(cursor)} onSelectEvent={onSelectEvent} />}
+      <div
+        className={`cal-swipe${slide ? ` slide-${slide}` : ''}`}
+        key={`${mode}-${cursor.getFullYear()}-${cursor.getMonth()}-${cursor.getDate()}`}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+        onAnimationEnd={() => setSlide(null)}
+      >
+        {mode === 'month' && <MonthView cursor={cursor} eventsOn={eventsOn} onPickDay={(d) => { setCursor(d); setMode('day'); }} />}
+        {mode === 'week' && <WeekView cursor={cursor} eventsOn={eventsOn} onSelectEvent={onSelectEvent} />}
+        {mode === 'day' && <DayList day={cursor} events={eventsOn(cursor)} onSelectEvent={onSelectEvent} />}
+      </div>
     </div>
   );
 }
@@ -92,7 +116,11 @@ function MonthView({
             <span className="dnum">{d.getDate()}</span>
             <div className="dots">
               {evs.slice(0, 4).map((e) => (
-                <span className="dot" key={e.appEventId} />
+                <span
+                  className="dot"
+                  key={e.appEventId}
+                  style={e.color ? { background: e.color } : undefined}
+                />
               ))}
             </div>
           </div>

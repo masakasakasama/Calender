@@ -25,6 +25,8 @@ export function useSharedEvents(currentUserId: string | null) {
       start: string;
       end: string;
       reminderMinutes: number | null;
+      color: string | null;
+      emoji: string | null;
     }) => {
       const now = new Date().toISOString();
       const uid = currentUserId ?? 'unknown';
