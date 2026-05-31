@@ -1,0 +1,56 @@
+name: Deploy to GitHub Pages
+
+# 機能ブランチへのプッシュ、または手動実行でデプロイ。
+on:
+  push:
+    branches:
+      - claude/couple-calendar-pwa-mvp-OEwKi
+  workflow_dispatch:
+
+# GITHUB_TOKEN に Pages デプロイ権限を付与。
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同時実行は最新のみ（古いデプロイをキャンセル）。
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # GitHub Pages の base パス '/Calender/' でビルド。
+      - run: npm run build
+        env:
+          VITE_BASE: /Calender/
+
+      # SPA フォールバック: 直リンク/リロード時に index.html を返す。
+      - run: cp dist/index.html dist/404.html
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
