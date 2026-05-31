@@ -38,6 +38,9 @@ jobs:
       - run: npm run build
         env:
           VITE_BASE: /Calender/
+          # デプロイごとに変わるビルド識別子（実行番号 + コミットSHA）。
+          VITE_BUILD_NUMBER: ${{ github.run_number }}
+          VITE_COMMIT_SHA: ${{ github.sha }}
           VITE_PARTNER_EMAIL: masakasakasama.man@gmail.com
           VITE_REBECCA_EMAIL: rere.geier@gmail.com
           VITE_FIREBASE_API_KEY: AIzaSyDBBD1W-zneFDNi1eZCtYqvyoXyJcmdk0k

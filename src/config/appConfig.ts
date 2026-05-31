@@ -9,13 +9,21 @@ const env = import.meta.env;
 const partnerEmail = (env.VITE_PARTNER_EMAIL ?? env.VITE_BOYFRIEND_EMAIL ?? 'me@example.com').toLowerCase();
 const rebeccaEmail = (env.VITE_REBECCA_EMAIL ?? env.VITE_GIRLFRIEND_EMAIL ?? 'rebecca@example.com').toLowerCase();
 
+// CI から渡されるビルド情報（ローカルでは 'dev'）。デプロイごとに変わる。
+const buildNumber = env.VITE_BUILD_NUMBER ?? 'dev';
+const commitShort = (env.VITE_COMMIT_SHA ?? '').slice(0, 7);
+
 export const APP_CONFIG = {
   fixedCoupleId: env.VITE_FIXED_COUPLE_ID ?? 'couple-main',
   partnerEmail,
   rebeccaEmail,
   allowedEmails: [partnerEmail, rebeccaEmail],
   appVersion: '0.3.0',
-  buildNumber: 3,
+  buildNumber,
+  commitShort,
+  // 例: "0.3.0 (build 42 · a1b2c3d)" / ローカルは "0.3.0 (dev)"
+  fullVersion:
+    commitShort ? `0.3.0 (build ${buildNumber} · ${commitShort})` : `0.3.0 (${buildNumber})`,
 } as const;
 
 /** 許可された2人のメール以外は利用不可。 */

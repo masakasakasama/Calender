@@ -47,7 +47,7 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
 
       <div className="section-title">アプリ</div>
       <div className="card" style={{ marginBottom: 16 }}>
-        <div className="set-row"><span>バージョン</span><span className="v">{state?.currentVersion ?? APP_CONFIG.appVersion}</span></div>
+        <div className="set-row"><span>バージョン</span><span className="v">{APP_CONFIG.fullVersion}</span></div>
         <div className="set-row"><span>更新</span><span className="v">{state?.updateAvailable ? '利用可能' : '最新'}</span></div>
         {state?.updateAvailable && (
           <button className="btn" style={{ marginTop: 10 }} onClick={() => applyUpdate()}>今すぐ更新</button>

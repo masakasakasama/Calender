@@ -88,7 +88,7 @@ export class UpdateService {
   private async fetchLatestVersion(): Promise<AppVersion | null> {
     return {
       version: APP_CONFIG.appVersion,
-      buildNumber: APP_CONFIG.buildNumber,
+      buildNumber: Number(APP_CONFIG.buildNumber) || 0,
       requiredUpdate: false,
       releaseNote: '',
       createdAt: new Date().toISOString(),
