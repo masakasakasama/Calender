@@ -13,17 +13,20 @@ const rebeccaEmail = (env.VITE_REBECCA_EMAIL ?? env.VITE_GIRLFRIEND_EMAIL ?? 're
 const buildNumber = env.VITE_BUILD_NUMBER ?? 'dev';
 const commitShort = (env.VITE_COMMIT_SHA ?? '').slice(0, 7);
 
+// アプリのバージョン。変更のたびにここを上げる（単一ソース）。
+const appVersion = '0.4.0';
+
 export const APP_CONFIG = {
   fixedCoupleId: env.VITE_FIXED_COUPLE_ID ?? 'couple-main',
   partnerEmail,
   rebeccaEmail,
   allowedEmails: [partnerEmail, rebeccaEmail],
-  appVersion: '0.3.0',
+  appVersion,
   buildNumber,
   commitShort,
-  // 例: "0.3.0 (build 42 · a1b2c3d)" / ローカルは "0.3.0 (dev)"
+  // 例: "0.4.0 (build 42 · a1b2c3d)" / ローカルは "0.4.0 (dev)"
   fullVersion:
-    commitShort ? `0.3.0 (build ${buildNumber} · ${commitShort})` : `0.3.0 (${buildNumber})`,
+    commitShort ? `${appVersion} (build ${buildNumber} · ${commitShort})` : `${appVersion} (${buildNumber})`,
 } as const;
 
 /** 許可された2人のメール以外は利用不可。 */
