@@ -1,6 +1,7 @@
 import {
   GoogleAuthProvider,
   browserLocalPersistence,
+  indexedDBLocalPersistence,
   signInWithPopup,
   signOut as fbSignOut,
   onAuthStateChanged as fbOnAuthStateChanged,
@@ -98,7 +99,7 @@ export class FirebaseAuthService implements IAuthService {
 
   async signInWithGoogle(): Promise<User> {
     const auth = firebaseAuth();
-    await setPersistence(auth, browserLocalPersistence);
+    await setPersistence(auth, indexedDBLocalPersistence).catch(() => setPersistence(auth, browserLocalPersistence));
     const cred = await signInWithPopup(auth, makeProvider());
     if (!isAllowedUser(cred.user.email)) {
       await fbSignOut(firebaseAuth());
@@ -124,6 +125,7 @@ export class FirebaseAuthService implements IAuthService {
   async connectGoogleCalendar(): Promise<boolean> {
     if (this.googleAccessToken) return true;
     const auth = firebaseAuth();
+    await setPersistence(auth, indexedDBLocalPersistence).catch(() => setPersistence(auth, browserLocalPersistence));
     const cred = await signInWithPopup(auth, makeProvider(true));
     if (!isAllowedUser(cred.user.email)) {
       await fbSignOut(firebaseAuth());

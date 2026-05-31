@@ -1,5 +1,13 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app';
-import { browserLocalPersistence, getAuth, setPersistence, type Auth } from 'firebase/auth';
+import {
+  browserLocalPersistence,
+  browserSessionPersistence,
+  getAuth,
+  indexedDBLocalPersistence,
+  initializeAuth,
+  setPersistence,
+  type Auth,
+} from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 
 // =====================================================================
@@ -32,8 +40,14 @@ export function firebaseApp(): FirebaseApp {
 
 export function firebaseAuth(): Auth {
   if (!_auth) {
-    _auth = getAuth(firebaseApp());
-    void setPersistence(_auth, browserLocalPersistence);
+    try {
+      _auth = initializeAuth(firebaseApp(), {
+        persistence: [indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence],
+      });
+    } catch {
+      _auth = getAuth(firebaseApp());
+    }
+    void setPersistence(_auth, indexedDBLocalPersistence).catch(() => setPersistence(_auth!, browserLocalPersistence));
   }
   return _auth;
 }
