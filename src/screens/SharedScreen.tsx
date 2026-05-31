@@ -25,6 +25,11 @@ export function SharedScreen({ user, openAdd, onAddHandled }: { user: User; open
 
   return (
     <div>
+      {events.length === 0 && (
+        <div className="notice">
+          Googleカレンダーの予定は「レベッカ」タブに表示されます。共有したい予定だけを「共有する」でここに追加できます。
+        </div>
+      )}
       <CalendarView events={events} onSelectEvent={setSelected} />
 
       {(adding || selected) && (

@@ -2,7 +2,7 @@ import type { CalendarEvent, GoogleCalendarSummary } from '@/types';
 
 // モックの「レベッカの既存Googleカレンダー一覧」。
 export const MOCK_REBECCA_CALENDARS: GoogleCalendarSummary[] = [
-  { googleCalendarId: 'rebecca-personal', calendarName: 'レベッカ（個人）', calendarColor: '#f06292', accessRole: 'owner' },
+  { googleCalendarId: 'rebecca-personal', calendarName: 'レベッカ（個人）', calendarColor: '#f06292', accessRole: 'owner', primary: true },
   { googleCalendarId: 'rebecca-work', calendarName: '仕事', calendarColor: '#4dd0e1', accessRole: 'owner' },
   { googleCalendarId: 'rebecca-gym', calendarName: 'ジム / 習い事', calendarColor: '#aed581', accessRole: 'writer' },
   { googleCalendarId: 'jp-holidays', calendarName: '日本の祝日', calendarColor: '#ffb74d', accessRole: 'reader' },

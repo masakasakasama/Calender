@@ -116,4 +116,5 @@ export interface GoogleCalendarSummary {
   calendarName: string;
   calendarColor: string;
   accessRole: 'owner' | 'writer' | 'reader';
+  primary?: boolean;
 }

@@ -14,6 +14,7 @@ interface GoogleCalendarListItem {
   backgroundColor?: string;
   accessRole?: 'owner' | 'writer' | 'reader' | 'freeBusyReader';
   selected?: boolean;
+  primary?: boolean;
 }
 
 interface GoogleEventItem {
@@ -71,6 +72,7 @@ export class GoogleCalendarService implements ICalendarService {
         calendarName: c.summary ?? c.id,
         calendarColor: c.backgroundColor ?? '#f472b6',
         accessRole: c.accessRole === 'freeBusyReader' ? 'reader' : c.accessRole ?? 'reader',
+        primary: c.primary ?? c.id === 'primary',
       }));
   }
 

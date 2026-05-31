@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback } from 'react';
 import type { CalendarEvent, GoogleCalendarSummary, RebeccaCalendarSetting, ShareLink } from '@/types';
 import { services } from '@/services/container';
 
+const AUTO_ENABLE_KEY = 'rebecca_primary_calendar_auto_enabled';
+
 // =====================================================================
 // レベッカ画面用フック。彼氏ロールでは呼ばれない（UI/ルーティングで遮断）。
 //   - 既存Googleカレンダー一覧（モック）
@@ -26,10 +28,20 @@ export function useRebeccaCalendars(currentUserId: string | null) {
         const list = await services.calendar.listRebeccaCalendars();
         if (!active) return;
         setCalendars(list);
-        // 初回: 設定が無いカレンダーはデフォルト(visible=false, sync=false)で作る。
+        // 初回テストで空に見えないよう、メインカレンダーだけ自動で表示/同期ONにする。
         const existing = services.settingsRepo.getRebeccaSettings();
+        const autoEnableDone = localStorage.getItem(AUTO_ENABLE_KEY) === '1';
+        const hasEnabledCalendar = existing.some((s) => s.syncEnabled || s.visibleInApp);
+        const autoTarget =
+          !autoEnableDone && !hasEnabledCalendar
+            ? list.find((c) => c.primary) ?? list.find((c) => c.accessRole === 'owner') ?? list[0]
+            : null;
+
         for (const c of list) {
-          if (!existing.some((s) => s.googleCalendarId === c.googleCalendarId)) {
+          const current = existing.find((s) => s.googleCalendarId === c.googleCalendarId);
+          const shouldAutoEnable = autoTarget?.googleCalendarId === c.googleCalendarId;
+
+          if (!current) {
             const now = new Date().toISOString();
             await services.settingsRepo.upsertRebeccaSetting({
               userId: currentUserId ?? 'user-rebecca',
@@ -37,13 +49,20 @@ export function useRebeccaCalendars(currentUserId: string | null) {
               calendarName: c.calendarName,
               calendarColor: c.calendarColor,
               accessRole: c.accessRole,
-              visibleInApp: false,
-              syncEnabled: false,
+              visibleInApp: shouldAutoEnable,
+              syncEnabled: shouldAutoEnable,
               createdAt: now,
               updatedAt: now,
             });
+          } else if (shouldAutoEnable) {
+            await services.settingsRepo.upsertRebeccaSetting({
+              ...current,
+              visibleInApp: true,
+              syncEnabled: true,
+            });
           }
         }
+        if (autoTarget) localStorage.setItem(AUTO_ENABLE_KEY, '1');
       } catch (e) {
         if (active) setError(e instanceof Error ? e.message : 'Googleカレンダーを取得できませんでした');
       } finally {
