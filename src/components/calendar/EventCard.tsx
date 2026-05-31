@@ -1,7 +1,6 @@
 import type { CalendarEvent } from '@/types';
 import { fmtDateTimeRange } from '@/utils/date';
-import { categoryById } from '@/utils/eventStyle';
-import { DEFAULT_COLOR } from '@/utils/eventStyle';
+import { categoryById, eventDisplayColor } from '@/utils/eventStyle';
 import { openInMaps } from '@/utils/maps';
 
 // 共有済み/非共有/同期エラーが一目で分かる予定カード。
@@ -16,7 +15,7 @@ export function EventCard({
   onClick?: () => void;
   right?: React.ReactNode;
 }) {
-  const color = accent ?? event.color ?? DEFAULT_COLOR;
+  const color = accent ?? eventDisplayColor(event);
   return (
     <div
       className="event-card"

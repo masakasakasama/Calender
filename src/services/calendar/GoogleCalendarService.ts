@@ -1,6 +1,6 @@
 import type { IEventsRepository } from '@/repositories/events/IEventsRepository';
 import type { CalendarEvent, GoogleCalendarSummary } from '@/types';
-import { suggestEmoji, nearestPaletteColor } from '@/utils/eventStyle';
+import { suggestEmoji, nearestPaletteColor, eventDisplayColor } from '@/utils/eventStyle';
 import type { ICalendarService } from './ICalendarService';
 
 const API = 'https://www.googleapis.com/calendar/v3';
@@ -183,6 +183,8 @@ export class GoogleCalendarService implements ICalendarService {
     const copy: CalendarEvent = {
       ...params.source,
       appEventId: id,
+      color: params.source.color ?? eventDisplayColor(params.source),
+      categoryId: params.source.categoryId ?? 'other',
       calendarType: 'shared',
       createdBy: params.byUserId,
       updatedBy: params.byUserId,

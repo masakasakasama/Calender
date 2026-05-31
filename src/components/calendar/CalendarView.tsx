@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { CalendarEvent } from '@/types';
 import { EventCard } from './EventCard';
 import { useSwipeDownClose } from '@/hooks/useSwipeDownClose';
+import { eventDisplayColor } from '@/utils/eventStyle';
 import {
   addDays,
   addMonths,
@@ -244,7 +245,7 @@ function MonthView({
                 <div
                   key={`b${idx}`}
                   className={`evt-bar${seg.contLeft ? ' cl' : ''}${seg.contRight ? ' cr' : ''}`}
-                  style={{ gridColumn: `${seg.c0 + 1} / ${seg.c1 + 2}`, gridRow: seg.lane + 2, background: seg.e.color ?? undefined }}
+                  style={{ gridColumn: `${seg.c0 + 1} / ${seg.c1 + 2}`, gridRow: seg.lane + 2, background: eventDisplayColor(seg.e) }}
                 >
                   {seg.e.emoji ? `${seg.e.emoji} ` : ''}
                   {seg.e.title}

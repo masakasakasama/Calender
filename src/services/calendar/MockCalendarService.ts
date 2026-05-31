@@ -2,6 +2,7 @@ import type { CalendarEvent, GoogleCalendarSummary } from '@/types';
 import type { IEventsRepository } from '@/repositories/events/IEventsRepository';
 import type { ICalendarService } from './ICalendarService';
 import { MOCK_REBECCA_CALENDARS, MOCK_REBECCA_EVENTS } from './mockData';
+import { eventDisplayColor } from '@/utils/eventStyle';
 
 const MOCK_SHARED_CALENDAR_ID = 'shared-couple-calendar';
 
@@ -50,8 +51,13 @@ export class MockCalendarService implements ICalendarService {
       start: source.start,
       end: source.end,
       reminderMinutes: source.reminderMinutes,
-      color: source.color ?? null,
+      color: source.color ?? eventDisplayColor(source),
       emoji: source.emoji ?? null,
+      categoryId: source.categoryId ?? 'other',
+      mapsPlaceId: source.mapsPlaceId ?? null,
+      recurrence: source.recurrence ?? null,
+      recurrenceParentId: source.recurrenceParentId ?? null,
+      version: source.version ?? 1,
       calendarType: 'shared',
       createdBy: byUserId,
       updatedBy: byUserId,

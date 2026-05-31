@@ -2,6 +2,8 @@
 // 予定の見た目（10色のカラーパレット）と、タイトルからの絵文字自動推定。
 // =====================================================================
 
+import type { CalendarEvent } from '@/types';
+
 export interface EventColor {
   id: string;
   label: string;
@@ -37,6 +39,22 @@ export const EVENT_CATEGORIES = [
 
 export function categoryById(id: string | null | undefined) {
   return EVENT_CATEGORIES.find((c) => c.id === id) ?? EVENT_CATEGORIES[EVENT_CATEGORIES.length - 1];
+}
+
+function stablePaletteColor(seed: string): string {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = (hash * 31 + seed.charCodeAt(i)) | 0;
+  }
+  return EVENT_COLORS[Math.abs(hash) % EVENT_COLORS.length].value;
+}
+
+export function eventDisplayColor(
+  event: Pick<CalendarEvent, 'color' | 'categoryId' | 'sourceGoogleCalendarId' | 'googleCalendarId' | 'title'>,
+): string {
+  if (event.color) return event.color;
+  if (event.categoryId) return categoryById(event.categoryId).color;
+  return stablePaletteColor(event.sourceGoogleCalendarId ?? event.googleCalendarId ?? event.title ?? 'default');
 }
 
 export function colorById(id: string | null | undefined): string {
