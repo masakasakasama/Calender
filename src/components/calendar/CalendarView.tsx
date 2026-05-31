@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CalendarEvent } from '@/types';
 import { EventCard } from './EventCard';
 import { useSwipeDownClose } from '@/hooks/useSwipeDownClose';
@@ -95,8 +95,8 @@ export function CalendarView({
         onAnimationEnd={() => setSlide(null)}
       >
         {mode === 'month' && <MonthView cursor={cursor} events={events} onPickDay={(d) => setSheetDate(d)} />}
-        {mode === 'week' && <WeekView cursor={cursor} eventsOn={eventsOn} onSelectEvent={onSelectEvent} />}
-        {mode === 'day' && <DayList day={cursor} events={eventsOn(cursor)} onSelectEvent={onSelectEvent} />}
+        {mode === 'week' && <ContinuousWeekView cursor={cursor} eventsOn={eventsOn} onSelectEvent={onSelectEvent} />}
+        {mode === 'day' && <ContinuousDayView cursor={cursor} eventsOn={eventsOn} onSelectEvent={onSelectEvent} />}
       </div>
 
       {sheetDate && (
@@ -263,7 +263,7 @@ function MonthView({
   );
 }
 
-function WeekView({
+function ContinuousWeekView({
   cursor,
   eventsOn,
   onSelectEvent,
@@ -272,20 +272,35 @@ function WeekView({
   eventsOn: (d: Date) => CalendarEvent[];
   onSelectEvent: (e: CalendarEvent) => void;
 }) {
-  const start = startOfWeek(cursor);
-  const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
+  const currentStart = startOfWeek(cursor);
+  const currentRef = useRef<HTMLDivElement | null>(null);
+  const weekStarts = Array.from({ length: 33 }, (_, i) => addDays(currentStart, (i - 8) * 7));
+
+  useEffect(() => {
+    currentRef.current?.scrollIntoView({ block: 'start' });
+  }, [ymd(currentStart)]);
+
   return (
-    <div className="day-list">
-      {days.map((d) => {
-        const evs = eventsOn(d);
+    <div className="day-list continuous-list">
+      {weekStarts.map((weekStart) => {
+        const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+        const isCurrent = ymd(weekStart) === ymd(currentStart);
         return (
-          <div key={d.toISOString()}>
-            <h4>{d.getMonth() + 1}/{d.getDate()}({WEEKDAY_LABELS[d.getDay()]})</h4>
-            {evs.length === 0 ? (
-              <div className="muted" style={{ padding: '4px 4px 8px' }}>予定なし</div>
-            ) : (
-              evs.map((e) => <EventCard key={e.appEventId} event={e} onClick={() => onSelectEvent(e)} />)
-            )}
+          <div key={ymd(weekStart)} ref={isCurrent ? currentRef : undefined} className="week-block">
+            <div className="week-separator">{ymd(weekStart)} の週</div>
+            {days.map((d) => {
+              const evs = eventsOn(d);
+              return (
+                <div key={d.toISOString()} className="day-block">
+                  <h4>{d.getMonth() + 1}/{d.getDate()}({WEEKDAY_LABELS[d.getDay()]})</h4>
+                  {evs.length === 0 ? (
+                    <div className="muted" style={{ padding: '4px 4px 8px' }}>予定なし</div>
+                  ) : (
+                    evs.map((e) => <EventCard key={e.appEventId} event={e} onClick={() => onSelectEvent(e)} />)
+                  )}
+                </div>
+              );
+            })}
           </div>
         );
       })}
@@ -293,22 +308,38 @@ function WeekView({
   );
 }
 
-function DayList({
-  day,
-  events,
+function ContinuousDayView({
+  cursor,
+  eventsOn,
   onSelectEvent,
 }: {
-  day: Date;
-  events: CalendarEvent[];
+  cursor: Date;
+  eventsOn: (d: Date) => CalendarEvent[];
   onSelectEvent: (e: CalendarEvent) => void;
 }) {
+  const currentRef = useRef<HTMLDivElement | null>(null);
+  const days = Array.from({ length: 91 }, (_, i) => addDays(cursor, i - 21));
+
+  useEffect(() => {
+    currentRef.current?.scrollIntoView({ block: 'start' });
+  }, [ymd(cursor)]);
+
   return (
-    <div>
-      {events.length === 0 ? (
-        <div className="empty">{day.getMonth() + 1}月{day.getDate()}日の予定はありません</div>
-      ) : (
-        events.map((e) => <EventCard key={e.appEventId} event={e} onClick={() => onSelectEvent(e)} />)
-      )}
+    <div className="day-list continuous-list">
+      {days.map((day) => {
+        const events = eventsOn(day);
+        const isCurrent = sameDay(day, cursor);
+        return (
+          <div key={ymd(day)} ref={isCurrent ? currentRef : undefined} className={`day-block${isCurrent ? ' current' : ''}`}>
+            <h4>{day.getMonth() + 1}/{day.getDate()}({WEEKDAY_LABELS[day.getDay()]})</h4>
+            {events.length === 0 ? (
+              <div className="muted" style={{ padding: '4px 4px 8px' }}>予定なし</div>
+            ) : (
+              events.map((e) => <EventCard key={e.appEventId} event={e} onClick={() => onSelectEvent(e)} />)
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

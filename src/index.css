@@ -272,6 +272,22 @@ input, textarea, select { font-family: inherit; font-size: 16px; }
 .set-row:last-child { border: none; }
 .set-row .v { color: var(--text-soft); font-weight: 600; }
 .day-list h4 { font-size: 12px; font-weight: 700; color: var(--primary-d); margin: 16px 4px 8px; }
+.continuous-list { scroll-margin-top: 120px; }
+.week-block, .day-block { scroll-margin-top: 118px; }
+.week-block { padding-top: 4px; }
+.week-separator {
+  position: sticky;
+  top: 104px;
+  z-index: 4;
+  margin: 8px 0 2px;
+  padding: 8px 4px;
+  color: var(--text-soft);
+  font-size: 11px;
+  font-weight: 700;
+  background: linear-gradient(180deg, rgba(250,248,255,.92), rgba(250,248,255,.62));
+  backdrop-filter: blur(8px);
+}
+.day-block.current h4 { color: var(--accent); }
 
 /* ---- 絵文字 / タイトル ---- */
 .title-row { display: flex; gap: 10px; align-items: center; }
