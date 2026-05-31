@@ -33,21 +33,19 @@ jobs:
       - run: npm ci
 
       # GitHub Pages の base パス '/Calender/' でビルド。
-      # Firebase / 許可メールは GitHub Secrets から注入。
-      # 未設定なら空 → アプリは自動でデモ(モック)動作にフォールバックする。
+      # Firebase Web config は公開前提の値。本番URLでFirebaseログインを有効にする。
+      # まずは masakasakasama.man@gmail.com だけで試験運用する。
       - run: npm run build
         env:
           VITE_BASE: /Calender/
-          VITE_PARTNER_EMAIL: ${{ secrets.VITE_PARTNER_EMAIL }}
-          VITE_REBECCA_EMAIL: ${{ secrets.VITE_REBECCA_EMAIL }}
-          VITE_BOYFRIEND_EMAIL: ${{ secrets.VITE_BOYFRIEND_EMAIL }}
-          VITE_GIRLFRIEND_EMAIL: ${{ secrets.VITE_GIRLFRIEND_EMAIL }}
-          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
-          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
-          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
-          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
-          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_PARTNER_EMAIL: masakasakasama.man@gmail.com
+          VITE_REBECCA_EMAIL: masakasakasama.man@gmail.com
+          VITE_FIREBASE_API_KEY: AIzaSyDBBD1W-zneFDNi1eZCtYqvyoXyJcmdk0k
+          VITE_FIREBASE_AUTH_DOMAIN: warikan-app-120fd.firebaseapp.com
+          VITE_FIREBASE_PROJECT_ID: warikan-app-120fd
+          VITE_FIREBASE_STORAGE_BUCKET: warikan-app-120fd.firebasestorage.app
+          VITE_FIREBASE_MESSAGING_SENDER_ID: "43289931875"
+          VITE_FIREBASE_APP_ID: 1:43289931875:web:1c1cfe7c703871659e4856
 
       # SPA フォールバック: 直リンク/リロード時に index.html を返す。
       - run: cp dist/index.html dist/404.html

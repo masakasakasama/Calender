@@ -13,13 +13,12 @@ service cloud.firestore {
 
     function allowedEmails() {
       return [
-        'partner@example.com',  // ← 置換: 共有アカウント
-        'rebecca@example.com'   // ← 置換: レベッカのGoogleアカウント
+        'masakasakasama.man@gmail.com'
       ];
     }
 
     function rebeccaEmail() {
-      return 'rebecca@example.com'; // ← 置換: レベッカのGoogleアカウント
+      return 'masakasakasama.man@gmail.com';
     }
 
     function isAllowed() {
