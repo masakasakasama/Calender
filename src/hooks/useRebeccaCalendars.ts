@@ -93,6 +93,37 @@ export function useRebeccaCalendars(currentUserId: string | null) {
   useEffect(() => services.settingsRepo.subscribeRebeccaSettings(setSettings), []);
   useEffect(() => services.shareLinksRepo.subscribe(setShareLinks), []);
 
+  // 同期ONカレンダーの予定は、彼にも見えるよう自動で共有カレンダーへコピーする。
+  // （重複は share_links と安定IDで防止。通知は出さない。）
+  useEffect(() => {
+    if (events.length === 0) return;
+    const sharedCalendarId = services.settingsRepo.getAppConfig().sharedCalendarId;
+    if (!sharedCalendarId) return;
+    let cancelled = false;
+    (async () => {
+      const allLinks = services.shareLinksRepo.getAll();
+      for (const ev of events) {
+        if (cancelled) break;
+        const srcId = ev.sourceGoogleEventId ?? ev.appEventId;
+        // 既に共有済み or 手動で共有解除済みのものは触らない（再共有しない）。
+        if (allLinks.some((l) => l.sourceGoogleEventId === srcId)) continue;
+        try {
+          await services.share.shareEvent({
+            sharedCalendarId,
+            source: ev,
+            byUserId: currentUserId ?? 'user-rebecca',
+            silent: true,
+          });
+        } catch {
+          /* 個別失敗は無視して継続 */
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [events, shareLinks, currentUserId]);
+
   // 同期対象カレンダーの予定を読み込む。
   useEffect(() => {
     const ids = settings.filter((s) => s.syncEnabled).map((s) => s.googleCalendarId);

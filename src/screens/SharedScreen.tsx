@@ -48,6 +48,7 @@ export function SharedScreen({ user, openAdd, onAddHandled }: { user: User; open
         <EventModal
           event={selected}
           initial={addInitial}
+          allowPrivate={user.role === 'rebecca'}
           onClose={close}
           onSave={handleSave}
           onDelete={selected ? () => deleteEvent(selected.appEventId) : undefined}

@@ -22,17 +22,19 @@ export class ShareService {
     return !!this.shareLinks.findActiveBySource(sourceGoogleEventId);
   }
 
-  /** レベッカの予定を共有カレンダーへコピー（重複防止つき）。 */
+  /** レベッカの予定を共有カレンダーへコピー（重複防止つき）。
+   *  silent=true のときは通知を出さない（自動一括共有用）。 */
   async shareEvent(params: {
     sharedCalendarId: string;
     source: CalendarEvent;
     byUserId: string;
-  }): Promise<void> {
-    const { sharedCalendarId, source, byUserId } = params;
+    silent?: boolean;
+  }): Promise<boolean> {
+    const { sharedCalendarId, source, byUserId, silent } = params;
     const sourceEventId = source.sourceGoogleEventId ?? source.appEventId;
 
     // 重複作成防止: 既に active な share_link があれば何もしない。
-    if (this.shareLinks.findActiveBySource(sourceEventId)) return;
+    if (this.shareLinks.findActiveBySource(sourceEventId)) return false;
 
     const copy = await this.calendar.copyEventToShared({ sharedCalendarId, source, byUserId });
 
@@ -49,12 +51,15 @@ export class ShareService {
     };
     await this.shareLinks.upsert(link);
 
-    // 共有を通知。
-    await this.notifications.notify({
-      kind: 'event_shared',
-      title: '新しい共有予定',
-      body: `「${source.title}」が共有されました`,
-    });
+    // 共有を通知（一括自動共有時は出さない）。
+    if (!silent) {
+      await this.notifications.notify({
+        kind: 'event_shared',
+        title: '新しい共有予定',
+        body: `「${source.title}」が共有されました`,
+      });
+    }
+    return true;
   }
 
   /** 共有解除: 共有カレンダー側コピーを削除し、share_link を removed に。 */

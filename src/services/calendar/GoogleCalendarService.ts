@@ -1,6 +1,5 @@
 import type { IEventsRepository } from '@/repositories/events/IEventsRepository';
 import type { CalendarEvent, GoogleCalendarSummary } from '@/types';
-import { newId } from '@/utils/id';
 import type { ICalendarService } from './ICalendarService';
 
 const API = 'https://www.googleapis.com/calendar/v3';
@@ -78,10 +77,10 @@ export class GoogleCalendarService implements ICalendarService {
 
   async listRebeccaEvents(googleCalendarIds: string[]): Promise<CalendarEvent[]> {
     const now = new Date();
-    const from = new Date(now);
-    from.setMonth(from.getMonth() - 1);
+    // 今年の頭（過去分含む）から1年先まで取得する。
+    const from = new Date(now.getFullYear(), 0, 1);
     const to = new Date(now);
-    to.setMonth(to.getMonth() + 3);
+    to.setFullYear(to.getFullYear() + 1);
 
     const batches = await Promise.all(
       googleCalendarIds.map(async (calendarId) => {
@@ -90,7 +89,7 @@ export class GoogleCalendarService implements ICalendarService {
           orderBy: 'startTime',
           timeMin: from.toISOString(),
           timeMax: to.toISOString(),
-          maxResults: '100',
+          maxResults: '2500',
         });
         const data = await authed<{ items?: GoogleEventItem[] }>(
           this.tokenProvider,
@@ -134,7 +133,9 @@ export class GoogleCalendarService implements ICalendarService {
     byUserId: string;
   }): Promise<CalendarEvent> {
     const now = new Date().toISOString();
-    const id = newId('shared');
+    // 元イベントから決まる安定ID（重複コピー防止）。
+    const srcId = params.source.sourceGoogleEventId ?? params.source.appEventId;
+    const id = `shared-${params.source.sourceGoogleCalendarId ?? 'x'}-${srcId}`;
     const copy: CalendarEvent = {
       ...params.source,
       appEventId: id,

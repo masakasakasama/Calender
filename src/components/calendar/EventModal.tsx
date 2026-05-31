@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { CalendarEvent } from '@/types';
+import type { CalendarEvent, EventVisibility } from '@/types';
 import { fmtDateTimeRange, fromLocalInput, toLocalInput } from '@/utils/date';
 import { EVENT_COLORS, DEFAULT_COLOR, EMOJI_PALETTE, suggestEmoji } from '@/utils/eventStyle';
 import { openInMaps } from '@/utils/maps';
@@ -13,6 +13,7 @@ export interface EventFormValue {
   reminderMinutes: number | null;
   color: string | null;
   emoji: string | null;
+  visibility: EventVisibility;
 }
 
 // 予定の詳細表示 + 追加/編集/削除。
@@ -20,6 +21,7 @@ export function EventModal({
   event,
   initial,
   readOnly,
+  allowPrivate,
   onClose,
   onSave,
   onDelete,
@@ -27,6 +29,7 @@ export function EventModal({
   event?: CalendarEvent | null;
   initial?: Partial<EventFormValue>;
   readOnly?: boolean;
+  allowPrivate?: boolean;
   onClose: () => void;
   onSave?: (v: EventFormValue) => void | Promise<void>;
   onDelete?: () => void | Promise<void>;
@@ -44,6 +47,7 @@ export function EventModal({
     reminderMinutes: event?.reminderMinutes ?? initial?.reminderMinutes ?? 15,
     color: event?.color ?? initial?.color ?? DEFAULT_COLOR,
     emoji: event?.emoji ?? initial?.emoji ?? suggestEmoji(initialTitle),
+    visibility: event?.visibility ?? initial?.visibility ?? 'shared',
   });
   // 絵文字をユーザーが手動変更したら、自動推定で上書きしない。
   const [emojiTouched, setEmojiTouched] = useState(Boolean(event?.emoji));
@@ -103,6 +107,28 @@ export function EventModal({
                 </div>
               )}
             </div>
+
+            {allowPrivate && (
+              <div className="field">
+                <label>公開範囲</label>
+                <div className="seg">
+                  <button
+                    type="button"
+                    className={v.visibility === 'shared' ? 'active' : ''}
+                    onClick={() => set('visibility', 'shared')}
+                  >
+                    💑 2人で共有
+                  </button>
+                  <button
+                    type="button"
+                    className={v.visibility === 'private' ? 'active' : ''}
+                    onClick={() => set('visibility', 'private')}
+                  >
+                    🔒 自分だけ
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="field">
               <label>色</label>

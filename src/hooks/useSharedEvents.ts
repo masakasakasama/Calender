@@ -1,19 +1,26 @@
 import { useEffect, useState, useCallback } from 'react';
-import type { CalendarEvent } from '@/types';
+import type { CalendarEvent, EventVisibility } from '@/types';
 import { services } from '@/services/container';
 import { newId } from '@/utils/id';
 
-// 共有カレンダー画面用。calendarType === 'shared' の予定のみ扱う。
-// これにより「非共有予定は彼氏側に表示されない」を構造的に担保する。
+// 共有カレンダー画面用。
+// 表示するのは「2人の共有予定」＋「自分だけの予定（作成者本人のみ）」。
+// 相手の "自分だけ" は表示しない（共有予定だけが相手に見える）。
 export function useSharedEvents(currentUserId: string | null) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
 
   useEffect(() => {
     const unsub = services.eventsRepo.subscribe((all) => {
-      setEvents(all.filter((e) => e.calendarType === 'shared' && e.visibility === 'shared'));
+      setEvents(
+        all.filter(
+          (e) =>
+            e.calendarType === 'shared' &&
+            (e.visibility === 'shared' || (e.visibility === 'private' && e.createdBy === currentUserId)),
+        ),
+      );
     });
     return unsub;
-  }, []);
+  }, [currentUserId]);
 
   const sharedCalendarId = services.settingsRepo.getAppConfig().sharedCalendarId;
 
@@ -27,6 +34,7 @@ export function useSharedEvents(currentUserId: string | null) {
       reminderMinutes: number | null;
       color: string | null;
       emoji: string | null;
+      visibility: EventVisibility;
     }) => {
       const now = new Date().toISOString();
       const uid = currentUserId ?? 'unknown';
@@ -42,7 +50,7 @@ export function useSharedEvents(currentUserId: string | null) {
         sourceGoogleEventId: null,
         sharedGoogleCalendarId: sharedCalendarId,
         sharedGoogleEventId: null,
-        visibility: 'shared',
+        visibility: input.visibility, // 自分だけ / 共有
         syncStatus: 'pending', // Google 反映待ち（モックでは pending のまま土台）
         createdAt: now,
         updatedAt: now,
