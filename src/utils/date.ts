@@ -10,7 +10,9 @@ export function sameDay(a: Date, b: Date): boolean {
 
 export function startOfWeek(d: Date): Date {
   const r = new Date(d);
-  r.setDate(d.getDate() - d.getDay());
+  // 週は月曜始まり（Mon=0 … Sun=6）。
+  const diff = (d.getDay() + 6) % 7;
+  r.setDate(d.getDate() - diff);
   r.setHours(0, 0, 0, 0);
   return r;
 }
@@ -58,4 +60,7 @@ export function fromLocalInput(value: string): string {
   return new Date(value).toISOString();
 }
 
+// getDay()(0=日)でのインデックス用。曜日名の取得に使う。
 export const WEEKDAY_LABELS = WEEKDAYS;
+// カレンダーの見出し行（月曜始まり）。
+export const WEEKDAY_HEADERS = ['月', '火', '水', '木', '金', '土', '日'];

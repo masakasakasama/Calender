@@ -8,6 +8,7 @@ import {
   sameDay,
   startOfWeek,
   WEEKDAY_LABELS,
+  WEEKDAY_HEADERS,
   ymd,
 } from '@/utils/date';
 
@@ -146,7 +147,7 @@ function MonthView({
 
   return (
     <div className="month-grid">
-      {WEEKDAY_LABELS.map((w) => (
+      {WEEKDAY_HEADERS.map((w) => (
         <div className="dow" key={w}>{w}</div>
       ))}
       {cells.map((d) => {
