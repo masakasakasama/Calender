@@ -36,9 +36,23 @@ export class MockNotificationService implements INotificationService {
 
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
       try {
-        new Notification(params.title, { body: params.body });
+        const reg = 'serviceWorker' in navigator ? await navigator.serviceWorker.ready.catch(() => null) : null;
+        if (reg?.showNotification) {
+          await reg.showNotification(params.title, {
+            body: params.body,
+            tag: `calender-${params.kind}`,
+            badge: 'icons/icon-192.svg',
+            icon: 'icons/icon-192.svg',
+          });
+        } else {
+          new Notification(params.title, { body: params.body });
+        }
       } catch {
-        /* SW 経由が必要な環境では無視 */
+        try {
+          new Notification(params.title, { body: params.body });
+        } catch {
+          /* 通知不可環境ではアプリ内通知だけ残す */
+        }
       }
     }
   }

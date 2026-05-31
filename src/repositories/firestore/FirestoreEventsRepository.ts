@@ -40,6 +40,10 @@ export class FirestoreEventsRepository implements IEventsRepository {
   }
 
   async upsert(event: CalendarEvent): Promise<CalendarEvent> {
+    const existing = this.cache.find((e) => e.appEventId === event.appEventId);
+    if (existing && event.updatedAt && existing.updatedAt > event.updatedAt) {
+      throw new Error('この予定は別の端末で更新されています。再読み込みしてから編集してください。');
+    }
     const next = { ...event, updatedAt: new Date().toISOString() };
     // Firestore は undefined を受け付けないため除去する（color/emoji 等）。
     const sanitized: Record<string, unknown> = {};

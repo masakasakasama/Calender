@@ -51,6 +51,7 @@ jobs:
           VITE_FIREBASE_STORAGE_BUCKET: warikan-app-120fd.firebasestorage.app
           VITE_FIREBASE_MESSAGING_SENDER_ID: "43289931875"
           VITE_FIREBASE_APP_ID: 1:43289931875:web:1c1cfe7c703871659e4856
+          VITE_GOOGLE_MAPS_API_KEY: AIzaSyDBBD1W-zneFDNi1eZCtYqvyoXyJcmdk0k
 
       # SPA フォールバック: 直リンク/リロード時に index.html を返す。
       - run: cp dist/index.html dist/404.html

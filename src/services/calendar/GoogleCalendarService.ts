@@ -145,6 +145,11 @@ export class GoogleCalendarService implements ICalendarService {
             reminderMinutes: null,
             color, // Googleカレンダーの色分けを反映
             emoji: suggestEmoji(title), // タイトルから絵文字を自動付与（月表示のアイコン）
+            categoryId: 'other',
+            mapsPlaceId: null,
+            recurrence: null,
+            recurrenceParentId: null,
+            version: 1,
             calendarType: 'rebecca_source',
             createdBy: 'google',
             updatedBy: 'google',

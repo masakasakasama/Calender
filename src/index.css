@@ -71,6 +71,11 @@ input, textarea, select { font-family: inherit; font-size: 16px; }
 
 /* ---- Content ---- */
 .content { flex: 1; padding: 16px 16px calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 28px); }
+.search-row { display: grid; grid-template-columns: 1fr 130px; gap: 8px; margin-bottom: 12px; }
+.search-row input, .search-row select {
+  width: 100%; padding: 11px 12px; border: 1.5px solid var(--line); border-radius: 16px;
+  background: rgba(255,255,255,.82); color: var(--text);
+}
 
 /* ---- Bottom tabs ---- */
 .tabbar {

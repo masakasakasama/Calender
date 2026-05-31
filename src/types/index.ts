@@ -44,6 +44,12 @@ export interface RebeccaCalendarSetting {
 export type CalendarType = 'shared' | 'rebecca_source';
 export type EventVisibility = 'shared' | 'private';
 export type SyncStatus = 'synced' | 'pending' | 'error';
+export type RecurrenceFrequency = 'none' | 'daily' | 'weekly' | 'monthly';
+
+export interface EventRecurrence {
+  frequency: RecurrenceFrequency;
+  count: number;
+}
 
 export interface CalendarEvent {
   appEventId: string;
@@ -55,6 +61,11 @@ export interface CalendarEvent {
   reminderMinutes: number | null;
   color?: string | null; // 色分け（EVENT_COLORS の value）
   emoji?: string | null; // タイトル先頭に表示する絵文字
+  categoryId?: string | null;
+  mapsPlaceId?: string | null;
+  recurrence?: EventRecurrence | null;
+  recurrenceParentId?: string | null;
+  version?: number;
 
   calendarType: CalendarType;
   createdBy: string; // userId

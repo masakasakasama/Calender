@@ -24,6 +24,21 @@ export const EVENT_COLORS: EventColor[] = [
 
 export const DEFAULT_COLOR = EVENT_COLORS[0].value;
 
+export const EVENT_CATEGORIES = [
+  { id: 'date', label: 'デート', color: '#ff8fc0', emoji: '💕' },
+  { id: 'meal', label: 'ごはん', color: '#ffb38f', emoji: '🍽️' },
+  { id: 'home', label: '家・生活', color: '#7fd9b3', emoji: '🏠' },
+  { id: 'travel', label: '旅行', color: '#8fc7ff', emoji: '✈️' },
+  { id: 'work', label: '仕事', color: '#a8a0bd', emoji: '💼' },
+  { id: 'health', label: '健康', color: '#5fc6c2', emoji: '🏥' },
+  { id: 'money', label: 'お金', color: '#f4cf57', emoji: '💰' },
+  { id: 'other', label: 'その他', color: '#b39ddf', emoji: '📌' },
+] as const;
+
+export function categoryById(id: string | null | undefined) {
+  return EVENT_CATEGORIES.find((c) => c.id === id) ?? EVENT_CATEGORIES[EVENT_CATEGORIES.length - 1];
+}
+
 export function colorById(id: string | null | undefined): string {
   return EVENT_COLORS.find((c) => c.id === id)?.value ?? id ?? DEFAULT_COLOR;
 }

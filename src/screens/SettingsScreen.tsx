@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import type { User } from '@/types';
+import { useRef, useState } from 'react';
+import type { CalendarEvent, ShareLink, User } from '@/types';
 import { APP_CONFIG } from '@/config/appConfig';
 import { useUpdate } from '@/hooks/useUpdate';
 import { useSync } from '@/hooks/useSync';
@@ -16,6 +16,7 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
   const [gConnected, setGConnected] = useState<boolean>(services.auth.isGoogleCalendarConnected?.() ?? false);
   const [gBusy, setGBusy] = useState(false);
   const [gErr, setGErr] = useState<string | null>(null);
+  const backupInput = useRef<HTMLInputElement | null>(null);
 
   const connectGoogle = async () => {
     setGErr(null);
@@ -27,6 +28,38 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
       setGErr(e instanceof Error ? e.message : 'Google連携に失敗しました');
     } finally {
       setGBusy(false);
+    }
+  };
+
+  const exportBackup = () => {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      app: 'calender',
+      version: APP_CONFIG.fullVersion,
+      events: services.eventsRepo.getAll(),
+      shareLinks: services.shareLinksRepo.getAll(),
+      appConfig: services.settingsRepo.getAppConfig(),
+      rebeccaSettings: services.settingsRepo.getRebeccaSettings(),
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `calender-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  const importBackup = async (file: File) => {
+    const text = await file.text();
+    const data = JSON.parse(text) as {
+      events?: CalendarEvent[];
+      shareLinks?: ShareLink[];
+    };
+    for (const ev of data.events ?? []) {
+      await services.eventsRepo.upsert(ev);
+    }
+    for (const link of data.shareLinks ?? []) {
+      await services.shareLinksRepo.upsert(link);
     }
   };
 
@@ -95,6 +128,26 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
         {state?.updateAvailable && (
           <button className="btn" style={{ marginTop: 10 }} onClick={() => applyUpdate()}>今すぐ更新</button>
         )}
+      </div>
+
+      <div className="section-title">バックアップ</div>
+      <div className="card" style={{ marginBottom: 16 }}>
+        <p className="muted" style={{ marginBottom: 10 }}>予定と共有リンクをJSONで保存/復元できます。</p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <button className="btn secondary" onClick={exportBackup}>書き出し</button>
+          <button className="btn secondary" onClick={() => backupInput.current?.click()}>読み込み</button>
+        </div>
+        <input
+          ref={backupInput}
+          type="file"
+          accept="application/json"
+          hidden
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) void importBackup(file);
+            e.currentTarget.value = '';
+          }}
+        />
       </div>
 
       <button className="btn ghost" onClick={onSignOut}>ログアウト</button>

@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import type { CalendarEvent, EventVisibility } from '@/types';
+import type { CalendarEvent, EventVisibility, EventRecurrence } from '@/types';
 import { fmtDateTimeRange, fromLocalInput, toLocalInput } from '@/utils/date';
-import { EVENT_COLORS, DEFAULT_COLOR, EMOJI_PALETTE, suggestEmoji } from '@/utils/eventStyle';
+import { EVENT_COLORS, DEFAULT_COLOR, EMOJI_PALETTE, EVENT_CATEGORIES, categoryById, suggestEmoji } from '@/utils/eventStyle';
 import { openInMaps } from '@/utils/maps';
 import { useSwipeDownClose } from '@/hooks/useSwipeDownClose';
+import { PlaceSuggestInput } from '@/components/maps/PlaceSuggestInput';
 
 export interface EventFormValue {
   title: string;
@@ -14,6 +15,9 @@ export interface EventFormValue {
   reminderMinutes: number | null;
   color: string | null;
   emoji: string | null;
+  categoryId: string | null;
+  mapsPlaceId: string | null;
+  recurrence: EventRecurrence | null;
   visibility: EventVisibility;
 }
 
@@ -48,15 +52,19 @@ export function EventModal({
     reminderMinutes: event?.reminderMinutes ?? initial?.reminderMinutes ?? 15,
     color: event?.color ?? initial?.color ?? DEFAULT_COLOR,
     emoji: event?.emoji ?? initial?.emoji ?? suggestEmoji(initialTitle),
+    categoryId: event?.categoryId ?? initial?.categoryId ?? 'other',
+    mapsPlaceId: event?.mapsPlaceId ?? initial?.mapsPlaceId ?? null,
+    recurrence: event?.recurrence ?? initial?.recurrence ?? { frequency: 'none', count: 1 },
     visibility: event?.visibility ?? initial?.visibility ?? 'shared',
   });
   // 絵文字をユーザーが手動変更したら、自動推定で上書きしない。
   const [emojiTouched, setEmojiTouched] = useState(Boolean(event?.emoji));
   const [showEmoji, setShowEmoji] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const swipe = useSwipeDownClose(onClose);
 
-  const set = (k: keyof EventFormValue, val: string | number | null) => setV((s) => ({ ...s, [k]: val }));
+  const set = (k: keyof EventFormValue, val: string | number | EventRecurrence | null) => setV((s) => ({ ...s, [k]: val }));
 
   const onTitleChange = (title: string) => {
     setV((s) => ({
@@ -72,12 +80,25 @@ export function EventModal({
     setShowEmoji(false);
   };
 
+  const pickCategory = (id: string) => {
+    const c = categoryById(id);
+    setV((s) => ({
+      ...s,
+      categoryId: id,
+      color: c.color,
+      emoji: emojiTouched ? s.emoji : c.emoji,
+    }));
+  };
+
   const submit = async () => {
     if (!v.title.trim() || !onSave) return;
+    setError(null);
     setSaving(true);
     try {
       await onSave(v);
       onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '保存に失敗しました');
     } finally {
       setSaving(false);
     }
@@ -139,6 +160,15 @@ export function EventModal({
             )}
 
             <div className="field">
+              <label>カテゴリ</label>
+              <select value={v.categoryId ?? 'other'} onChange={(e) => pickCategory(e.target.value)}>
+                {EVENT_CATEGORIES.map((c) => (
+                  <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="field">
               <label>色</label>
               <div className="color-row">
                 {EVENT_COLORS.map((c) => (
@@ -176,7 +206,11 @@ export function EventModal({
             <div className="field">
               <label>場所</label>
               <div className="loc-row">
-                <input value={v.location} onChange={(e) => set('location', e.target.value)} placeholder="例: 渋谷 スカイ" />
+                <PlaceSuggestInput
+                  value={v.location}
+                  onChange={(next) => set('location', next)}
+                  onPlaceId={(placeId) => set('mapsPlaceId', placeId)}
+                />
                 <button
                   type="button"
                   className="btn sm secondary"
@@ -207,9 +241,35 @@ export function EventModal({
                 <option value="60">1時間前</option>
               </select>
             </div>
+            {!event && (
+              <div className="field">
+                <label>繰り返し</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 96px', gap: 8 }}>
+                  <select
+                    value={v.recurrence?.frequency ?? 'none'}
+                    onChange={(e) => set('recurrence', { frequency: e.target.value as EventRecurrence['frequency'], count: v.recurrence?.count ?? 1 })}
+                  >
+                    <option value="none">なし</option>
+                    <option value="daily">毎日</option>
+                    <option value="weekly">毎週</option>
+                    <option value="monthly">毎月</option>
+                  </select>
+                  <input
+                    type="number"
+                    min={1}
+                    max={52}
+                    value={v.recurrence?.count ?? 1}
+                    disabled={(v.recurrence?.frequency ?? 'none') === 'none'}
+                    onChange={(e) => set('recurrence', { frequency: v.recurrence?.frequency ?? 'none', count: Math.max(1, Math.min(52, Number(e.target.value) || 1)) })}
+                  />
+                </div>
+                <p className="muted" style={{ marginTop: 6 }}>作成時に指定回数ぶん予定を作ります。</p>
+              </div>
+            )}
             <button className="btn" disabled={saving || !v.title.trim()} onClick={submit}>
               {saving ? '保存中…' : '保存'}
             </button>
+            {error && <p className="login-error" style={{ marginTop: 10 }}>{error}</p>}
           </>
         ) : (
           <>

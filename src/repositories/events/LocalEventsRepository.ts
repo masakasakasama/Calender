@@ -33,9 +33,10 @@ export class LocalEventsRepository implements IEventsRepository {
     const idx = all.findIndex((e) => e.appEventId === event.appEventId);
     const next: CalendarEvent = { ...event, updatedAt: now };
     if (idx >= 0) {
-      // 競合処理（基本方針）: updatedAt が新しい方を優先。
       const existing = all[idx];
-      if (existing.updatedAt > next.updatedAt) return existing;
+      if (event.updatedAt && existing.updatedAt > event.updatedAt) {
+        throw new Error('この予定は別の端末で更新されています。再読み込みしてから編集してください。');
+      }
       all[idx] = next;
     } else {
       all.push({ ...next, createdAt: next.createdAt || now });

@@ -1,5 +1,6 @@
 import type { CalendarEvent } from '@/types';
 import { fmtDateTimeRange } from '@/utils/date';
+import { categoryById } from '@/utils/eventStyle';
 import { DEFAULT_COLOR } from '@/utils/eventStyle';
 import { openInMaps } from '@/utils/maps';
 
@@ -46,6 +47,7 @@ export function EventCard({
           {event.syncStatus === 'pending' && <span className="chip pending">同期待ち</span>}
           {event.syncStatus === 'error' && <span className="chip error">同期エラー</span>}
           {event.reminderMinutes != null && <span className="chip">通知 {event.reminderMinutes}分前</span>}
+          {event.categoryId && <span className="chip">{categoryById(event.categoryId).label}</span>}
         </div>
       </div>
       {right && <div onClick={(e) => e.stopPropagation()}>{right}</div>}
