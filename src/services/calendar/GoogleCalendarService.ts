@@ -82,6 +82,7 @@ export class GoogleCalendarService implements ICalendarService {
     const to = new Date(now);
     to.setFullYear(to.getFullYear() + 1);
 
+    // 1つのカレンダー取得が失敗しても、他のカレンダーの予定は表示する。
     const batches = await Promise.all(
       googleCalendarIds.map(async (calendarId) => {
         const qs = new URLSearchParams({
@@ -91,10 +92,15 @@ export class GoogleCalendarService implements ICalendarService {
           timeMax: to.toISOString(),
           maxResults: '2500',
         });
-        const data = await authed<{ items?: GoogleEventItem[] }>(
-          this.tokenProvider,
-          `/calendars/${encodeURIComponent(calendarId)}/events?${qs.toString()}`,
-        );
+        let data: { items?: GoogleEventItem[] };
+        try {
+          data = await authed<{ items?: GoogleEventItem[] }>(
+            this.tokenProvider,
+            `/calendars/${encodeURIComponent(calendarId)}/events?${qs.toString()}`,
+          );
+        } catch {
+          return [] as CalendarEvent[];
+        }
         return (data.items ?? []).map((ev): CalendarEvent => {
           const sourceId = ev.id;
           const updatedAt = ev.updated ? new Date(ev.updated).toISOString() : new Date().toISOString();

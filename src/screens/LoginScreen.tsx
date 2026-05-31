@@ -23,7 +23,7 @@ export function LoginScreen() {
   return (
     <div className="login">
       <div className="logo-badge">💗</div>
-      <h2>ふたりのカレンダー</h2>
+      <h2>calender</h2>
       <p>
         ふたりだけの予定をひとつに。<br />
         Googleでログインしてはじめましょう。

@@ -125,6 +125,7 @@ export function useRebeccaCalendars(currentUserId: string | null) {
   }, [events, shareLinks, currentUserId]);
 
   // 同期対象カレンダーの予定を読み込む。
+  // refreshKey を依存に含め、連携(connect)直後にも再取得する。
   useEffect(() => {
     const ids = settings.filter((s) => s.syncEnabled).map((s) => s.googleCalendarId);
     if (ids.length === 0 || !calendarReady()) {
@@ -146,7 +147,7 @@ export function useRebeccaCalendars(currentUserId: string | null) {
     return () => {
       active = false;
     };
-  }, [settings]);
+  }, [settings, refreshKey]);
 
   const toggleVisible = useCallback((s: RebeccaCalendarSetting, value: boolean) => {
     return services.settingsRepo.upsertRebeccaSetting({ ...s, visibleInApp: value });

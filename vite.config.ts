@@ -21,8 +21,8 @@ export default defineConfig({
       registerType: 'prompt',
       injectRegister: null, // 登録は src/services/update/UpdateService.ts で明示的に行う
       manifest: {
-        name: 'Couple Calendar',
-        short_name: 'Couple',
+        name: 'calender',
+        short_name: 'calender',
         description: '彼氏とレベッカの2人用共有カレンダー',
         theme_color: '#7c6cf0',
         background_color: '#faf8ff',

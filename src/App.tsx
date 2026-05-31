@@ -66,7 +66,7 @@ export default function App() {
 
       <header className="appbar">
         <h1>
-          <span className="appbar-heart">💗</span> ふたりのカレンダー
+          <span className="appbar-heart">💗</span> calender
         </h1>
         <div className="who">
           {user.displayName}
