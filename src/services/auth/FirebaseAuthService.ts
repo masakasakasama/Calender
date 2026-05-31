@@ -17,11 +17,13 @@ import type { IAuthService } from './IAuthService';
 // 本番の Googleログイン。Firebase Auth + GoogleAuthProvider。
 // 許可された2メール以外はサインアウトさせて拒否する。
 // =====================================================================
-function makeProvider(): GoogleAuthProvider {
+function makeProvider(includeCalendarScopes = false): GoogleAuthProvider {
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
-  provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
-  provider.addScope('https://www.googleapis.com/auth/calendar.events');
+  if (includeCalendarScopes) {
+    provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
+    provider.addScope('https://www.googleapis.com/auth/calendar.events');
+  }
   return provider;
 }
 
@@ -75,8 +77,6 @@ export class FirebaseAuthService implements IAuthService {
       await fbSignOut(firebaseAuth());
       throw new Error('このアカウントはこのアプリを利用できません');
     }
-    const oauth = GoogleAuthProvider.credentialFromResult(cred);
-    this.googleAccessToken = oauth?.accessToken ?? null;
     const user = toAppUser(cred.user);
     this.current = user;
     await this.users.upsert(user).catch(() => {});
@@ -84,6 +84,19 @@ export class FirebaseAuthService implements IAuthService {
   }
 
   async getGoogleAccessToken(): Promise<string | null> {
+    if (this.googleAccessToken) return this.googleAccessToken;
+    const auth = firebaseAuth();
+    if (!auth.currentUser) return null;
+    const cred = await signInWithPopup(auth, makeProvider(true));
+    if (!isAllowedUser(cred.user.email)) {
+      await fbSignOut(firebaseAuth());
+      throw new Error('このアカウントはこのアプリを利用できません');
+    }
+    const oauth = GoogleAuthProvider.credentialFromResult(cred);
+    this.googleAccessToken = oauth?.accessToken ?? null;
+    const user = toAppUser(cred.user);
+    this.current = user;
+    await this.users.upsert(user).catch(() => {});
     return this.googleAccessToken;
   }
 
