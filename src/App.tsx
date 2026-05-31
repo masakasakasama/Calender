@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useGoogleSync } from '@/hooks/useGoogleSync';
 import { LoginScreen } from '@/screens/LoginScreen';
 import { SharedScreen } from '@/screens/SharedScreen';
 import { RebeccaScreen } from '@/screens/RebeccaScreen';
@@ -17,6 +18,8 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('shared');
   const [openAdd, setOpenAdd] = useState(false);
   const { unreadCount } = useNotifications();
+  // レベッカのGoogle予定を自動同期（タブを開かなくても動く）。
+  useGoogleSync(user);
 
   if (loading && !user) {
     return (

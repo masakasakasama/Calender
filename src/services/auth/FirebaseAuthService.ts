@@ -107,6 +107,10 @@ export class FirebaseAuthService implements IAuthService {
     const user = toAppUser(cred.user);
     this.current = user;
     await this.users.upsert(user).catch(() => {});
+    // 連携直後に自動同期をキック。
+    if (this.googleAccessToken && typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('gcal-connected'));
+    }
     return this.googleAccessToken != null;
   }
 

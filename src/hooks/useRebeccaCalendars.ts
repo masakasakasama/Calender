@@ -92,46 +92,7 @@ export function useRebeccaCalendars(currentUserId: string | null) {
 
   useEffect(() => services.settingsRepo.subscribeRebeccaSettings(setSettings), []);
   useEffect(() => services.shareLinksRepo.subscribe(setShareLinks), []);
-
-  // 同期ONカレンダーの予定は、彼にも見えるよう自動で共有カレンダーへコピーする。
-  // （重複は share_links と安定IDで防止。通知は出さない。）
-  useEffect(() => {
-    if (events.length === 0) return;
-    const sharedCalendarId = services.settingsRepo.getAppConfig().sharedCalendarId;
-    if (!sharedCalendarId) return;
-    let cancelled = false;
-    (async () => {
-      const allLinks = services.shareLinksRepo.getAll();
-      for (const ev of events) {
-        if (cancelled) break;
-        const srcId = ev.sourceGoogleEventId ?? ev.appEventId;
-        const link = allLinks.find((l) => l.sourceGoogleEventId === srcId);
-        try {
-          if (!link) {
-            // 未共有 → 新規共有
-            await services.share.shareEvent({
-              sharedCalendarId,
-              source: ev,
-              byUserId: currentUserId ?? 'user-rebecca',
-              silent: true,
-            });
-          } else if (link.status === 'active') {
-            // 共有済み → コピーの色/絵文字/タイトルが古ければ最新に更新
-            const copy = services.eventsRepo.getById(link.sharedGoogleEventId);
-            if (copy && (copy.color !== ev.color || copy.emoji !== ev.emoji || copy.title !== ev.title)) {
-              await services.share.refreshShared({ sharedCalendarId, source: ev, byUserId: currentUserId ?? 'user-rebecca' });
-            }
-          }
-          // link.status === 'removed' は手動解除なので何もしない
-        } catch {
-          /* 個別失敗は無視して継続 */
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [events, shareLinks, currentUserId]);
+  // 共有カレンダーへの自動同期は useGoogleSync（App全体）で実行する。
 
   // 同期対象カレンダーの予定を読み込む。
   // refreshKey を依存に含め、連携(connect)直後にも再取得する。
