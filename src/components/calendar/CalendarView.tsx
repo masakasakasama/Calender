@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CalendarEvent } from '@/types';
 import { EventCard } from './EventCard';
+import type { EventFormValue } from './EventModal';
 import { useSwipeDownClose } from '@/hooks/useSwipeDownClose';
 import { eventDisplayColor } from '@/utils/eventStyle';
+import { suggestPlans, planToInitial, isWeekend, TIER_LABEL } from '@/utils/datePlans';
 import {
   addDays,
   addMonths,
@@ -21,15 +23,29 @@ export function CalendarView({
   events,
   onSelectEvent,
   onAddOnDate,
+  requestDay,
+  onRequestHandled,
 }: {
   events: CalendarEvent[];
   onSelectEvent: (e: CalendarEvent) => void;
-  onAddOnDate?: (date: Date) => void;
+  onAddOnDate?: (date: Date, initial?: Partial<EventFormValue>) => void;
+  requestDay?: Date | null;
+  onRequestHandled?: () => void;
 }) {
   const [mode, setMode] = useState<Mode>('month');
   const [cursor, setCursor] = useState<Date>(new Date());
   const [slide, setSlide] = useState<'l' | 'r' | null>(null);
   const [sheetDate, setSheetDate] = useState<Date | null>(null);
+
+  // 外部から指定された日（週末バナー等）のシートを開く。
+  useEffect(() => {
+    if (requestDay) {
+      setCursor(requestDay);
+      setSheetDate(requestDay);
+      onRequestHandled?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestDay]);
 
   // その日に「かかっている」予定を返す（複数日にまたがる予定は全ての日に表示）。
   const eventsOn = (d: Date) => {
@@ -106,7 +122,7 @@ export function CalendarView({
           events={eventsOn(sheetDate)}
           onClose={() => setSheetDate(null)}
           onSelectEvent={(e) => { setSheetDate(null); onSelectEvent(e); }}
-          onAdd={onAddOnDate ? () => { const d = sheetDate; setSheetDate(null); onAddOnDate(d); } : undefined}
+          onAdd={onAddOnDate ? (init) => { const d = sheetDate; setSheetDate(null); onAddOnDate(d, init); } : undefined}
         />
       )}
     </div>
@@ -125,9 +141,11 @@ function DaySheet({
   events: CalendarEvent[];
   onClose: () => void;
   onSelectEvent: (e: CalendarEvent) => void;
-  onAdd?: () => void;
+  onAdd?: (initial?: Partial<EventFormValue>) => void;
 }) {
   const swipe = useSwipeDownClose(onClose);
+  // 予定がない土日は、おすすめプランを提案する。
+  const showPlans = events.length === 0 && isWeekend(day);
   return (
     <div className="scrim" onClick={onClose}>
       <div
@@ -140,12 +158,30 @@ function DaySheet({
         <div className="grab" />
         <h3>{day.getFullYear()}年{day.getMonth() + 1}月{day.getDate()}日({WEEKDAY_LABELS[day.getDay()]})</h3>
         {events.length === 0 ? (
-          <div className="empty">この日の予定はありません</div>
+          <div className="empty" style={{ padding: showPlans ? '12px' : undefined }}>この日の予定はありません</div>
         ) : (
           events.map((e) => <EventCard key={e.appEventId} event={e} onClick={() => onSelectEvent(e)} />)
         )}
+
+        {showPlans && onAdd && (
+          <div className="plan-suggest">
+            <div className="plan-head">☁️ 空いてる週末♪ おすすめプラン</div>
+            {suggestPlans(day).map((p) => (
+              <button key={p.tier} className="plan-card" onClick={() => onAdd(planToInitial(day, p))}>
+                <span className="plan-emoji">{p.emoji}</span>
+                <span className="plan-body">
+                  <span className="plan-tier">{TIER_LABEL[p.tier]}</span>
+                  <span className="plan-title">{p.title}</span>
+                  <span className="plan-desc">{p.description}</span>
+                </span>
+                <span className="plan-add">＋</span>
+              </button>
+            ))}
+          </div>
+        )}
+
         {onAdd && (
-          <button className="btn" style={{ marginTop: 10 }} onClick={onAdd}>＋ この日に予定を追加</button>
+          <button className="btn" style={{ marginTop: 10 }} onClick={() => onAdd()}>＋ この日に予定を追加</button>
         )}
       </div>
     </div>

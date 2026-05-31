@@ -14,7 +14,7 @@ const buildNumber = env.VITE_BUILD_NUMBER ?? 'dev';
 const commitShort = (env.VITE_COMMIT_SHA ?? '').slice(0, 7);
 
 // アプリのバージョン。変更のたびにここを上げる（単一ソース）。
-const appVersion = '0.8.1';
+const appVersion = '0.9.0';
 
 export const APP_CONFIG = {
   fixedCoupleId: env.VITE_FIXED_COUPLE_ID ?? 'couple-main',
