@@ -17,6 +17,8 @@ import type { IAuthService } from './IAuthService';
 const GCAL_TOKEN_KEY = 'calender_google_calendar_access_token';
 const GCAL_TOKEN_EXPIRES_KEY = 'calender_google_calendar_access_token_expires_at';
 const APP_USER_CACHE_KEY = 'calender_last_signed_in_user';
+const FIREBASE_AUTH_DB = 'firebaseLocalStorageDb';
+const FIREBASE_AUTH_STORE = 'firebaseLocalStorage';
 
 // =====================================================================
 // 本番の Googleログイン。Firebase Auth + GoogleAuthProvider。
@@ -48,6 +50,27 @@ function toAppUser(fb: FbUser): User {
   };
 }
 
+function appUserFromStoredAuth(stored: {
+  uid?: string;
+  email?: string;
+  displayName?: string;
+  photoURL?: string | null;
+}): User | null {
+  const role = resolveRole(stored.email);
+  if (!stored.email || !stored.uid || !role || !isAllowedUser(stored.email)) return null;
+  const now = new Date().toISOString();
+  return {
+    userId: stored.uid,
+    displayName: stored.displayName ?? stored.email,
+    email: stored.email.toLowerCase(),
+    role,
+    photoURL: stored.photoURL ?? null,
+    notificationEnabled: false,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
 export class FirebaseAuthService implements IAuthService {
   private current: User | null = this.restoreCachedUser();
   private googleAccessToken: string | null = this.restoreGoogleAccessToken();
@@ -70,25 +93,8 @@ export class FirebaseAuthService implements IAuthService {
       const key = localStorage.key(i);
       if (!key?.startsWith('firebase:authUser:')) continue;
       try {
-        const stored = JSON.parse(localStorage.getItem(key) ?? '{}') as {
-          uid?: string;
-          email?: string;
-          displayName?: string;
-          photoURL?: string | null;
-        };
-        const role = resolveRole(stored.email);
-        if (!stored.email || !stored.uid || !role || !isAllowedUser(stored.email)) continue;
-        const now = new Date().toISOString();
-        const user: User = {
-          userId: stored.uid,
-          displayName: stored.displayName ?? stored.email,
-          email: stored.email.toLowerCase(),
-          role,
-          photoURL: stored.photoURL ?? null,
-          notificationEnabled: false,
-          createdAt: now,
-          updatedAt: now,
-        };
+        const user = appUserFromStoredAuth(JSON.parse(localStorage.getItem(key) ?? '{}'));
+        if (!user) continue;
         this.rememberCachedUser(user);
         return user;
       } catch {
@@ -96,6 +102,49 @@ export class FirebaseAuthService implements IAuthService {
       }
     }
     return null;
+  }
+
+  private restoreFirebaseIndexedDbUser(): Promise<User | null> {
+    if (typeof indexedDB === 'undefined') return Promise.resolve(null);
+    return new Promise((resolve) => {
+      const request = indexedDB.open(FIREBASE_AUTH_DB);
+      request.onerror = () => resolve(null);
+      request.onupgradeneeded = () => {
+        request.transaction?.abort();
+        resolve(null);
+      };
+      request.onsuccess = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(FIREBASE_AUTH_STORE)) {
+          db.close();
+          resolve(null);
+          return;
+        }
+        const tx = db.transaction(FIREBASE_AUTH_STORE, 'readonly');
+        const store = tx.objectStore(FIREBASE_AUTH_STORE);
+        const cursor = store.openCursor();
+        let done = false;
+        const finish = (user: User | null) => {
+          if (done) return;
+          done = true;
+          db.close();
+          if (user) this.rememberCachedUser(user);
+          resolve(user);
+        };
+        cursor.onerror = () => finish(null);
+        cursor.onsuccess = () => {
+          const cur = cursor.result;
+          if (!cur) {
+            finish(null);
+            return;
+          }
+          const value = cur.value as { value?: unknown };
+          const user = appUserFromStoredAuth(value.value ?? value);
+          if (user) finish(user);
+          else cur.continue();
+        };
+      };
+    });
   }
 
   private rememberCachedUser(user: User | null): void {
@@ -146,7 +195,7 @@ export class FirebaseAuthService implements IAuthService {
         listener(user);
       } else {
         if (fb) await fbSignOut(firebaseAuth()).catch(() => {}); // 許可外は即サインアウト
-        this.current = this.restoreCachedUser();
+        this.current = this.restoreCachedUser() ?? (await this.restoreFirebaseIndexedDbUser());
         listener(this.current);
       }
     });
