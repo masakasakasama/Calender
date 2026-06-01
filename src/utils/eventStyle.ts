@@ -41,6 +41,27 @@ export function categoryById(id: string | null | undefined) {
   return EVENT_CATEGORIES.find((c) => c.id === id) ?? EVENT_CATEGORIES[EVENT_CATEGORIES.length - 1];
 }
 
+// タイトルからカテゴリを自動判定（色分けの基準）。先に一致したもの。
+const CATEGORY_RULES: [RegExp, string][] = [
+  [/(旅行|旅|出張|帰省|温泉|スパ|海|ビーチ|ハイキング|登山|キャンプ|ディズニー|遊園地|花火|trip|travel)/i, 'travel'],
+  [/(ランチ|ディナー|ご飯|ごはん|食事|レストラン|カフェ|お茶|コーヒー|飲み|居酒屋|焼肉|寿司|ラーメン|ブランチ|食べ歩き)/i, 'meal'],
+  [/(仕事|会議|ミーティング|mtg|打ち合わせ|商談|面談|出勤|勤務|案件|納品|meeting|work)/i, 'work'],
+  [/(病院|通院|歯医者|クリニック|診察|ジム|筋トレ|トレーニング|ヨガ|ピラティス|美容院|ヘア|ネイル|サロン)/i, 'health'],
+  [/(振込|支払|家賃|給料|引き落とし|請求|お金|money|支払い)/i, 'money'],
+  [/(掃除|洗濯|家事|買い物|ショッピング|買物|ゴミ|宅配|受け取り)/i, 'home'],
+  [/(デート|映画|ライブ|コンサート|フェス|記念日|誕生日|水族館|動物園|花見|イルミ|date)/i, 'date'],
+];
+
+/** タイトルからカテゴリIDを推定。該当なしは 'other'。 */
+export function suggestCategory(title: string): string {
+  const t = (title ?? '').trim();
+  if (!t) return 'other';
+  for (const [re, id] of CATEGORY_RULES) {
+    if (re.test(t)) return id;
+  }
+  return 'other';
+}
+
 function stablePaletteColor(seed: string): string {
   let hash = 0;
   for (let i = 0; i < seed.length; i++) {
