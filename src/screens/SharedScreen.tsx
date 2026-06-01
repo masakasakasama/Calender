@@ -4,11 +4,8 @@ import { useSharedEvents } from '@/hooks/useSharedEvents';
 import { CalendarView } from '@/components/calendar/CalendarView';
 import { EventModal, type EventFormValue } from '@/components/calendar/EventModal';
 import { EVENT_CATEGORIES } from '@/utils/eventStyle';
-import { isWeekend } from '@/utils/datePlans';
 
-const WD = ['日', '月', '火', '水', '木', '金', '土'];
-
-// 共有カレンダー画面（2人で見る）。
+// 共有カレンダー画面（2人で見る）。ホームはカレンダーと検索だけのシンプル構成。
 export function SharedScreen({ user, openAdd, onAddHandled }: { user: User; openAdd: boolean; onAddHandled: () => void }) {
   const { events, createEvent, updateEvent, deleteEvent } = useSharedEvents(user.userId);
   const [selected, setSelected] = useState<CalendarEvent | null>(null);
@@ -16,7 +13,6 @@ export function SharedScreen({ user, openAdd, onAddHandled }: { user: User; open
   const [addInitial, setAddInitial] = useState<Partial<EventFormValue> | undefined>(undefined);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');
-  const [requestDay, setRequestDay] = useState<Date | null>(null);
 
   // 「追加」タブから来たフラグを開く。
   if (openAdd && !adding) {
@@ -38,28 +34,6 @@ export function SharedScreen({ user, openAdd, onAddHandled }: { user: User; open
     setAdding(true);
   };
 
-  // 直近の「予定が無い土日」を探す（プラン提案の入口）。
-  const nextOpenWeekend = (() => {
-    const occupied = (d: Date) =>
-      events.some((e) => {
-        const s = new Date(e.start);
-        const en = new Date(new Date(e.end).getTime() - 1);
-        const k = d.toDateString();
-        for (let t = new Date(s.getFullYear(), s.getMonth(), s.getDate()); t <= en; t.setDate(t.getDate() + 1)) {
-          if (t.toDateString() === k) return true;
-        }
-        return false;
-      });
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    for (let i = 0; i < 21; i++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() + i);
-      if (isWeekend(d) && !occupied(d)) return d;
-    }
-    return null;
-  })();
-
   const handleSave = async (v: EventFormValue) => {
     if (selected) await updateEvent({ ...selected, ...v });
     else await createEvent(v);
@@ -69,24 +43,13 @@ export function SharedScreen({ user, openAdd, onAddHandled }: { user: User; open
   const q = query.trim().toLowerCase();
   const visibleEvents = events.filter((e) => {
     const matchesText =
-      !q ||
-      [e.title, e.location, e.description].some((x) => (x ?? '').toLowerCase().includes(q));
+      !q || [e.title, e.location, e.description].some((x) => (x ?? '').toLowerCase().includes(q));
     const matchesCategory = category === 'all' || e.categoryId === category;
     return matchesText && matchesCategory;
   });
 
   return (
     <div>
-      {nextOpenWeekend && (
-        <button className="weekend-banner" onClick={() => setRequestDay(nextOpenWeekend)}>
-          <span style={{ fontSize: 20 }}>☁️</span>
-          <span>
-            {nextOpenWeekend.getMonth() + 1}/{nextOpenWeekend.getDate()}({WD[nextOpenWeekend.getDay()]}) が空いてます。
-            <b> デートプランを見る ›</b>
-          </span>
-        </button>
-      )}
-
       <div className="search-row">
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="予定を検索" />
         <select value={category} onChange={(e) => setCategory(e.target.value)}>
@@ -96,19 +59,8 @@ export function SharedScreen({ user, openAdd, onAddHandled }: { user: User; open
           ))}
         </select>
       </div>
-      {events.length === 0 && (
-        <div className="notice">
-          Googleカレンダーの予定は「レベッカ」タブに表示されます。共有したい予定だけを「共有する」でここに追加できます。
-        </div>
-      )}
 
-      <CalendarView
-        events={visibleEvents}
-        onSelectEvent={setSelected}
-        onAddOnDate={addOnDate}
-        requestDay={requestDay}
-        onRequestHandled={() => setRequestDay(null)}
-      />
+      <CalendarView events={visibleEvents} onSelectEvent={setSelected} onAddOnDate={addOnDate} />
 
       {(adding || selected) && (
         <EventModal

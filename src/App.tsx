@@ -6,12 +6,13 @@ import { LoginScreen } from '@/screens/LoginScreen';
 import { SharedScreen } from '@/screens/SharedScreen';
 import { RebeccaScreen } from '@/screens/RebeccaScreen';
 import { NotificationsScreen } from '@/screens/NotificationsScreen';
+import { PlanScreen } from '@/screens/PlanScreen';
 import { SettingsScreen } from '@/screens/SettingsScreen';
 import { UpdateBanner } from '@/components/pwa/UpdateBanner';
 import { InstallHint } from '@/components/pwa/InstallHint';
 import { CloudMascot } from '@/components/CloudMascot';
 
-type Tab = 'shared' | 'rebecca' | 'add' | 'notifications' | 'settings';
+type Tab = 'shared' | 'rebecca' | 'add' | 'plan' | 'notifications' | 'settings';
 
 export default function App() {
   const { user, loading, signOut } = useAuth();
@@ -44,11 +45,12 @@ export default function App() {
   const isRebecca = user.role === 'rebecca';
 
   // レベッカ本人だけが「レベッカ」画面を使える。共有画面は2人共通。
+  // 「通知」はヘッダーのベルに移動し、その枠を「プラン」に入れ替え。
   const tabs: { key: Tab; label: string; ico: string }[] = [
     { key: 'shared', label: '共有', ico: '🗓️' },
     ...(isRebecca ? [{ key: 'rebecca' as Tab, label: 'レベッカ', ico: '🌸' }] : []),
     { key: 'add', label: '追加', ico: '＋' },
-    { key: 'notifications', label: '通知', ico: '🔔' },
+    { key: 'plan', label: 'プラン', ico: '💝' },
     { key: 'settings', label: '設定', ico: '⚙️' },
   ];
 
@@ -72,9 +74,15 @@ export default function App() {
         <h1 className="font-hand">
           <CloudMascot size={30} /> calender
         </h1>
-        <div className="who">
-          {user.displayName}
-          <span className={`badge-role ${user.role}`}>{isRebecca ? 'レベッカ' : '共有'}</span>
+        <div className="appbar-right">
+          <button className="bell-btn" onClick={() => setTab('notifications')} aria-label="通知">
+            🔔
+            {unreadCount > 0 && <span className="nbadge">{unreadCount}</span>}
+          </button>
+          <div className="who">
+            {user.displayName}
+            <span className={`badge-role ${user.role}`}>{isRebecca ? 'レベッカ' : '共有'}</span>
+          </div>
         </div>
       </header>
 
@@ -83,6 +91,7 @@ export default function App() {
           <SharedScreen user={user} openAdd={openAdd} onAddHandled={() => setOpenAdd(false)} />
         )}
         {activeTab === 'rebecca' && isRebecca && <RebeccaScreen user={user} />}
+        {activeTab === 'plan' && <PlanScreen user={user} />}
         {activeTab === 'notifications' && <NotificationsScreen />}
         {activeTab === 'settings' && <SettingsScreen user={user} onSignOut={signOut} />}
       </main>
@@ -98,7 +107,6 @@ export default function App() {
             >
               <span className={isAdd ? 'ico add' : 'ico'}>{t.ico}</span>
               {t.label}
-              {t.key === 'notifications' && unreadCount > 0 && <span className="nbadge">{unreadCount}</span>}
             </button>
           );
         })}
