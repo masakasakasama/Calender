@@ -36,16 +36,26 @@ export function fmtTime(iso: string): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
+/** yyyy/MM/dd 形式。 */
+export function fmtYmd(d: Date): string {
+  return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** yyyy/MM/dd HH:mm 形式。 */
+export function fmtYmdHm(d: Date): string {
+  return `${fmtYmd(d)} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
 export function fmtDateTimeRange(startIso: string, endIso: string): string {
   const s = new Date(startIso);
   const e = new Date(endIso);
-  const head = `${s.getMonth() + 1}/${s.getDate()}(${WEEKDAYS[s.getDay()]}) ${fmtTime(startIso)}`;
+  const head = `${fmtYmd(s)}(${WEEKDAYS[s.getDay()]}) ${fmtTime(startIso)}`;
   if (sameDay(s, e)) return `${head} – ${fmtTime(endIso)}`;
-  return `${head} – ${e.getMonth() + 1}/${e.getDate()} ${fmtTime(endIso)}`;
+  return `${head} – ${fmtYmd(e)} ${fmtTime(endIso)}`;
 }
 
 export function fmtMonthTitle(d: Date): string {
-  return `${d.getFullYear()}年 ${d.getMonth() + 1}月`;
+  return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
 /** datetime-local input 用文字列。 */

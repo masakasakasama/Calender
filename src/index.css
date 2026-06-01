@@ -190,6 +190,16 @@ input, textarea, select { font-family: inherit; font-size: 16px; }
 .field input:focus, .field textarea:focus, .field select:focus { outline: none; border-color: var(--primary); }
 .field textarea { resize: vertical; min-height: 70px; }
 
+/* 日時フィールド（表示は yyyy/MM/dd、タップでネイティブピッカー） */
+.dt-field { position: relative; }
+.dt-field .dt-text {
+  display: block; width: 100%; padding: 13px 14px; border: 1.5px solid var(--line);
+  border-radius: 14px; background: var(--surface); color: var(--text); font-size: 16px;
+}
+.dt-field input {
+  position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; margin: 0; border: none; background: transparent;
+}
+
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 7px;
   padding: 14px 18px; border-radius: 16px; font-weight: 700; font-size: 15px;

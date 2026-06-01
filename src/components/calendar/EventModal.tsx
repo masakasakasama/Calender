@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { CalendarEvent, EventVisibility, EventRecurrence } from '@/types';
-import { fmtDateTimeRange, fromLocalInput, toLocalInput } from '@/utils/date';
+import { fmtDateTimeRange } from '@/utils/date';
+import { DateTimeField } from './DateTimeField';
 import { EVENT_COLORS, DEFAULT_COLOR, EMOJI_PALETTE, EVENT_CATEGORIES, categoryById, suggestEmoji } from '@/utils/eventStyle';
 import { openInMaps } from '@/utils/maps';
 import { useSwipeDownClose } from '@/hooks/useSwipeDownClose';
@@ -186,21 +187,11 @@ export function EventModal({
 
             <div className="field">
               <label>開始</label>
-              <input
-                type="datetime-local"
-                step={900}
-                value={toLocalInput(v.start)}
-                onChange={(e) => set('start', fromLocalInput(e.target.value))}
-              />
+              <DateTimeField value={v.start} onChange={(iso) => set('start', iso)} />
             </div>
             <div className="field">
               <label>終了</label>
-              <input
-                type="datetime-local"
-                step={900}
-                value={toLocalInput(v.end)}
-                onChange={(e) => set('end', fromLocalInput(e.target.value))}
-              />
+              <DateTimeField value={v.end} onChange={(iso) => set('end', iso)} />
             </div>
 
             <div className="field">

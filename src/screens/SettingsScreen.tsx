@@ -5,6 +5,7 @@ import { useUpdate } from '@/hooks/useUpdate';
 import { useSync } from '@/hooks/useSync';
 import { useNotifications } from '@/hooks/useNotifications';
 import { services } from '@/services/container';
+import { fmtYmdHm } from '@/utils/date';
 
 export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const { state, applyUpdate } = useUpdate();
@@ -115,7 +116,7 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
             </div>
             <div className="set-row">
               <span>Google最終取得</span>
-              <span className="v">{lastGoogleSyncAt ? new Date(lastGoogleSyncAt).toLocaleString() : '未取得'}</span>
+              <span className="v">{lastGoogleSyncAt ? fmtYmdHm(new Date(lastGoogleSyncAt)) : '未取得'}</span>
             </div>
             <p className="muted" style={{ margin: '10px 0' }}>
               レベッカが一度読み込んだGoogle予定はFirestoreに保存されます。普段は再連携なしで開けて、Googleから最新に更新したい時だけ連携します。
@@ -136,7 +137,7 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
         <div className="set-row"><span>共有カレンダーID</span><span className="v">{config.sharedCalendarId ?? '未設定'}</span></div>
         <div className="set-row"><span>共有アカウント</span><span className="v">{APP_CONFIG.partnerEmail}</span></div>
         <div className="set-row"><span>レベッカ</span><span className="v">{APP_CONFIG.rebeccaEmail}</span></div>
-        <div className="set-row"><span>最終同期</span><span className="v">{last ? new Date(last.at).toLocaleString() : '—'}</span></div>
+        <div className="set-row"><span>最終同期</span><span className="v">{last ? fmtYmdHm(new Date(last.at)) : '—'}</span></div>
       </div>
 
       <div className="section-title">アプリ</div>

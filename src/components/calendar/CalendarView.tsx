@@ -9,6 +9,7 @@ import {
   addDays,
   addMonths,
   fmtMonthTitle,
+  fmtYmd,
   sameDay,
   startOfWeek,
   WEEKDAY_LABELS,
@@ -86,8 +87,8 @@ export function CalendarView({
     mode === 'month'
       ? fmtMonthTitle(cursor)
       : mode === 'week'
-        ? `${ymd(startOfWeek(cursor))} の週`
-        : `${cursor.getMonth() + 1}/${cursor.getDate()}(${WEEKDAY_LABELS[cursor.getDay()]})`;
+        ? `${fmtYmd(startOfWeek(cursor))} の週`
+        : `${fmtYmd(cursor)}(${WEEKDAY_LABELS[cursor.getDay()]})`;
 
   return (
     <div>
@@ -156,7 +157,7 @@ function DaySheet({
         onTouchEnd={swipe.onTouchEnd}
       >
         <div className="grab" />
-        <h3>{day.getFullYear()}年{day.getMonth() + 1}月{day.getDate()}日({WEEKDAY_LABELS[day.getDay()]})</h3>
+        <h3>{fmtYmd(day)}({WEEKDAY_LABELS[day.getDay()]})</h3>
         {events.length === 0 ? (
           <div className="empty" style={{ padding: showPlans ? '12px' : undefined }}>この日の予定はありません</div>
         ) : (
@@ -329,7 +330,7 @@ function ContinuousWeekView({
               const evs = eventsOn(d);
               return (
                 <div key={d.toISOString()} className="day-block">
-                  <h4>{d.getMonth() + 1}/{d.getDate()}({WEEKDAY_LABELS[d.getDay()]})</h4>
+                  <h4>{fmtYmd(d)}({WEEKDAY_LABELS[d.getDay()]})</h4>
                   {evs.length === 0 ? (
                     <div className="muted" style={{ padding: '4px 4px 8px' }}>予定なし</div>
                   ) : (
@@ -368,7 +369,7 @@ function ContinuousDayView({
         const isCurrent = sameDay(day, cursor);
         return (
           <div key={ymd(day)} ref={isCurrent ? currentRef : undefined} className={`day-block${isCurrent ? ' current' : ''}`}>
-            <h4>{day.getMonth() + 1}/{day.getDate()}({WEEKDAY_LABELS[day.getDay()]})</h4>
+            <h4>{fmtYmd(day)}({WEEKDAY_LABELS[day.getDay()]})</h4>
             {events.length === 0 ? (
               <div className="muted" style={{ padding: '4px 4px 8px' }}>予定なし</div>
             ) : (
