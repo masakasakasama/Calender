@@ -1,6 +1,6 @@
 import type { IEventsRepository } from '@/repositories/events/IEventsRepository';
 import type { CalendarEvent, GoogleCalendarSummary } from '@/types';
-import { suggestEmoji, nearestPaletteColor, eventDisplayColor, suggestCategory, categoryById } from '@/utils/eventStyle';
+import { suggestEmoji, eventDisplayColor } from '@/utils/eventStyle';
 import type { ICalendarService } from './ICalendarService';
 
 const API = 'https://www.googleapis.com/calendar/v3';
@@ -84,6 +84,19 @@ export class GoogleCalendarService implements ICalendarService {
       }));
   }
 
+  /** カレンダーID → そのカレンダーの色(backgroundColor)。失敗時は空。 */
+  private async calendarColorMap(): Promise<Record<string, string>> {
+    try {
+      const data = await authed<{ items?: GoogleCalendarListItem[] }>(this.tokenProvider, '/users/me/calendarList');
+      const map: Record<string, string> = {};
+      for (const c of data.items ?? []) {
+        if (c.backgroundColor) map[c.id] = c.backgroundColor;
+      }
+      return map;
+    } catch {
+      return {};
+    }
+  }
 
   async listRebeccaEvents(googleCalendarIds: string[]): Promise<CalendarEvent[]> {
     const now = new Date();
@@ -91,6 +104,9 @@ export class GoogleCalendarService implements ICalendarService {
     const from = new Date(now.getFullYear(), 0, 1);
     const to = new Date(now);
     to.setFullYear(to.getFullYear() + 1);
+
+    // カレンダーごとの実際の色（backgroundColor）を取得しておく。
+    const calColors = await this.calendarColorMap();
 
     // 1つのカレンダー取得が失敗しても、他のカレンダーの予定は表示する。
     const batches = await Promise.all(
@@ -115,12 +131,11 @@ export class GoogleCalendarService implements ICalendarService {
           const sourceId = ev.id;
           const updatedAt = ev.updated ? new Date(ev.updated).toISOString() : new Date().toISOString();
           const title = ev.summary ?? '無題の予定';
-          // 色分け方針：予定の種類(カテゴリ)で色を変える＝見た目で分かる色分け。
-          //  1) Googleで個別に色付けした予定はその色を優先（パレットに最も近い色へ）
-          //  2) それ以外はタイトルから判定したカテゴリの色（種類ごとに変化）
-          const categoryId = suggestCategory(title);
-          const perEventColor = ev.colorId && GOOGLE_EVENT_COLORS[ev.colorId] ? nearestPaletteColor(GOOGLE_EVENT_COLORS[ev.colorId]) : null;
-          const color = perEventColor ?? categoryById(categoryId).color;
+          // レベッカのGoogleカレンダーの実際の色をそのまま使う。
+          //  1) 予定個別の色(colorId)があればそれ
+          //  2) なければそのカレンダーの色(backgroundColor)
+          const color =
+            (ev.colorId && GOOGLE_EVENT_COLORS[ev.colorId]) || calColors[calendarId] || null;
           return {
             appEventId: `google-${calendarId}-${sourceId}`,
             title,
@@ -129,9 +144,9 @@ export class GoogleCalendarService implements ICalendarService {
             start: toIso(ev.start),
             end: toIso(ev.end),
             reminderMinutes: null,
-            color, // 種類ごとの色分け
-            emoji: suggestEmoji(title), // タイトルから絵文字を自動付与（月表示のアイコン）
-            categoryId,
+            color, // Googleカレンダーの実際の色
+            emoji: suggestEmoji(title), // タイトルから絵文字（アイコン表示用）
+            categoryId: 'other',
             mapsPlaceId: null,
             recurrence: null,
             recurrenceParentId: null,
