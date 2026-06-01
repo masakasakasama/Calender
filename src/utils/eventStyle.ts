@@ -70,13 +70,16 @@ function stablePaletteColor(seed: string): string {
   return EVENT_COLORS[Math.abs(hash) % EVENT_COLORS.length].value;
 }
 
+// 表示色は「予定の種類」で決める（＝見た目の色分け）。
+// 描画のたびにタイトルから判定するので、保存済みの古い予定も即座に色分けされる。
+// 手動作成イベント（Google由来でない）でユーザーが色を選んだ場合だけ、その色を尊重する。
 export function eventDisplayColor(
-  event: Pick<CalendarEvent, 'color' | 'categoryId' | 'sourceGoogleCalendarId' | 'googleCalendarId' | 'title'>,
+  event: Pick<CalendarEvent, 'color' | 'categoryId' | 'title' | 'sourceGoogleEventId'>,
 ): string {
-  if (event.color) return event.color;
-  const googleSeed = event.sourceGoogleCalendarId ?? event.googleCalendarId;
-  if (googleSeed) return stablePaletteColor(googleSeed);
-  if (event.categoryId) return categoryById(event.categoryId).color;
+  if (!event.sourceGoogleEventId && event.color) return event.color;
+  const catId = event.categoryId && event.categoryId !== 'other' ? event.categoryId : suggestCategory(event.title ?? '');
+  if (catId !== 'other') return categoryById(catId).color;
+  // カテゴリ不明はタイトルで色を散らす（全部同色を避ける）。
   return stablePaletteColor(event.title ?? 'default');
 }
 
