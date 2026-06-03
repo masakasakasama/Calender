@@ -7,7 +7,7 @@ import { EVENT_CATEGORIES } from '@/utils/eventStyle';
 
 // 共有カレンダー画面（2人で見る）。ホームはカレンダーと検索だけのシンプル構成。
 export function SharedScreen({ user, openAdd, onAddHandled }: { user: User; openAdd: boolean; onAddHandled: () => void }) {
-  const { events, createEvent, updateEvent, deleteEvent } = useSharedEvents(user.userId);
+  const { events, createEvent, updateEvent, deleteEvent, resyncEvent } = useSharedEvents(user.userId);
   const [selected, setSelected] = useState<CalendarEvent | null>(null);
   const [adding, setAdding] = useState(false);
   const [addInitial, setAddInitial] = useState<Partial<EventFormValue> | undefined>(undefined);
@@ -70,6 +70,7 @@ export function SharedScreen({ user, openAdd, onAddHandled }: { user: User; open
           onClose={close}
           onSave={handleSave}
           onDelete={selected ? () => deleteEvent(selected.appEventId) : undefined}
+          onResync={selected ? () => resyncEvent(selected) : undefined}
         />
       )}
     </div>

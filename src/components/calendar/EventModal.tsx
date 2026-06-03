@@ -31,6 +31,7 @@ export function EventModal({
   onClose,
   onSave,
   onDelete,
+  onResync,
 }: {
   event?: CalendarEvent | null;
   initial?: Partial<EventFormValue>;
@@ -39,6 +40,7 @@ export function EventModal({
   onClose: () => void;
   onSave?: (v: EventFormValue) => void | Promise<void>;
   onDelete?: () => void | Promise<void>;
+  onResync?: () => void | Promise<void>;
 }) {
   const now = new Date();
   const later = new Date(now.getTime() + 60 * 60 * 1000);
@@ -276,6 +278,16 @@ export function EventModal({
             )}
             {v.description && <p style={{ marginTop: 8, whiteSpace: 'pre-wrap' }}>{v.description}</p>}
             {v.reminderMinutes != null && <p className="muted" style={{ marginTop: 8 }}>通知: {v.reminderMinutes}分前</p>}
+            {event?.syncStatus === 'error' && (
+              <div className="notice error" style={{ marginTop: 12 }}>
+                ⚠️ Googleカレンダーへの反映に失敗しました{event.syncError ? `：${event.syncError}` : ''}
+                {onResync && (
+                  <button className="btn sm" style={{ marginTop: 10 }} onClick={async () => { await onResync(); }}>
+                    Googleに再同期
+                  </button>
+                )}
+              </div>
+            )}
             {!readOnly && (
               <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
                 <button className="btn secondary" onClick={() => setEditing(true)}>編集</button>

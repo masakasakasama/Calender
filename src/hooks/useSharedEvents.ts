@@ -46,7 +46,19 @@ export function useSharedEvents(currentUserId: string | null) {
   async function pushSharedToGoogle(ev: CalendarEvent): Promise<void> {
     if (ev.visibility !== 'shared' || ev.sourceGoogleEventId) return;
     const gcal = googleSharedCalId();
-    if (!gcal || !services.calendar.pushEventToGoogle) return;
+    if (!gcal) {
+      await services.eventsRepo.upsert({ ...ev, syncStatus: 'error', syncError: '共有Googleカレンダーが未設定です' });
+      return;
+    }
+    if (!services.calendar.pushEventToGoogle) return;
+    if (!(services.auth.isGoogleCalendarConnected?.() ?? true)) {
+      await services.eventsRepo.upsert({
+        ...ev,
+        syncStatus: 'error',
+        syncError: '設定でGoogleカレンダー連携をしてください（未連携のため書き込めません）',
+      });
+      return;
+    }
     try {
       const gid = await services.calendar.pushEventToGoogle(gcal, ev);
       await services.eventsRepo.upsert({
@@ -54,11 +66,18 @@ export function useSharedEvents(currentUserId: string | null) {
         googleEventId: gid,
         googleCalendarId: gcal,
         syncStatus: 'synced',
+        syncError: null,
       });
-    } catch {
-      await services.eventsRepo.upsert({ ...ev, syncStatus: 'error' });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      await services.eventsRepo.upsert({ ...ev, syncStatus: 'error', syncError: msg });
     }
   }
+
+  // 同期エラーの予定をGoogleへ再送する。
+  const resyncEvent = useCallback(async (ev: CalendarEvent) => {
+    await pushSharedToGoogle({ ...ev, syncStatus: 'pending' });
+  }, []);
 
   const createEvent = useCallback(
     async (input: {
@@ -152,5 +171,5 @@ export function useSharedEvents(currentUserId: string | null) {
     [currentUserId],
   );
 
-  return { events, createEvent, updateEvent, deleteEvent };
+  return { events, createEvent, updateEvent, deleteEvent, resyncEvent };
 }

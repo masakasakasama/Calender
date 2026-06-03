@@ -84,6 +84,7 @@ export interface CalendarEvent {
 
   visibility: EventVisibility;
   syncStatus: SyncStatus;
+  syncError?: string | null; // Google同期に失敗した理由（成功時はnull）
 
   createdAt: string;
   updatedAt: string;
