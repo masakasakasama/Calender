@@ -14,18 +14,35 @@ const COL = 'events';
 const CACHE_KEY = 'firestore_events_cache';
 
 // onSnapshot でリアルタイム同期（複数デバイス自動同期）。
-// 同期APIの getAll/getById を満たすため in-memory キャッシュを保持する。
+// 端末ローカルにしか無い予定はクラウドへ自動再送する（自己修復）。
 export class FirestoreEventsRepository implements IEventsRepository {
   private cache: CalendarEvent[] = localStore.get<CalendarEvent[]>(CACHE_KEY, []);
   private listeners = new Set<(e: CalendarEvent[]) => void>();
 
   constructor() {
     onSnapshot(collection(firebaseDb(), COL), (snap) => {
-      this.cache = snap.docs.map((d) => d.data() as CalendarEvent);
+      const server = snap.docs.map((d) => d.data() as CalendarEvent);
+      const serverIds = new Set(server.map((e) => e.appEventId));
+      // サーバーに無い＝ローカルだけの予定は残しつつ、クラウドへ再送する。
+      // （削除はソフト削除でサーバーに残るため、復活はしない）
+      const localOnly = this.cache.filter((e) => !serverIds.has(e.appEventId));
+      this.cache = [...server, ...localOnly];
       localStore.set(CACHE_KEY, this.cache);
       const visible = this.cache.filter((e) => !e.deletedAt);
       this.listeners.forEach((l) => l(visible));
+      // 自己修復：ローカルだけの予定をクラウドへ書き込む。
+      for (const e of localOnly) {
+        if (!e.deletedAt) void this.pushToCloud(e).catch(() => {});
+      }
     });
+  }
+
+  private async pushToCloud(event: CalendarEvent): Promise<void> {
+    const sanitized: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(event)) {
+      if (v !== undefined) sanitized[k] = v;
+    }
+    await setDoc(doc(firebaseDb(), COL, event.appEventId), { ...sanitized, _serverUpdatedAt: serverTimestamp() });
   }
 
   subscribe(listener: (events: CalendarEvent[]) => void): () => void {
@@ -43,22 +60,11 @@ export class FirestoreEventsRepository implements IEventsRepository {
   }
 
   async upsert(event: CalendarEvent): Promise<CalendarEvent> {
-    const existing = this.cache.find((e) => e.appEventId === event.appEventId);
-    if (existing && event.updatedAt && existing.updatedAt > event.updatedAt) {
-      throw new Error('この予定は別の端末で更新されています。再読み込みしてから編集してください。');
-    }
+    // 競合は最終書き込み優先（throwで書き込みを落とさない＝端末間のズレを防ぐ）。
     const next = { ...event, updatedAt: new Date().toISOString() };
     this.cache = [...this.cache.filter((e) => e.appEventId !== next.appEventId), next];
     localStore.set(CACHE_KEY, this.cache);
-    // Firestore は undefined を受け付けないため除去する（color/emoji 等）。
-    const sanitized: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(next)) {
-      if (v !== undefined) sanitized[k] = v;
-    }
-    await setDoc(doc(firebaseDb(), COL, event.appEventId), {
-      ...sanitized,
-      _serverUpdatedAt: serverTimestamp(),
-    });
+    await this.pushToCloud(next);
     return next;
   }
 
