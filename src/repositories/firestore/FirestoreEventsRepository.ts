@@ -68,6 +68,19 @@ export class FirestoreEventsRepository implements IEventsRepository {
     return next;
   }
 
+  /** 端末ローカルの全予定をクラウドへ強制再送する（同期トラブルの復旧用）。 */
+  async forceResync(): Promise<number> {
+    const list = this.cache.filter((e) => !e.deletedAt);
+    for (const e of list) {
+      try {
+        await this.pushToCloud(e);
+      } catch {
+        /* 個別失敗は無視して続行 */
+      }
+    }
+    return list.length;
+  }
+
   async softDelete(appEventId: string, byUserId: string): Promise<void> {
     const now = new Date().toISOString();
     this.cache = this.cache.map((e) =>

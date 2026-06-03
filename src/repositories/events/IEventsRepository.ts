@@ -16,4 +16,7 @@ export interface IEventsRepository {
 
   /** 論理削除（deletedAt セット）。 */
   softDelete(appEventId: string, byUserId: string): Promise<void>;
+
+  /** 端末ローカルの予定を全部クラウドへ強制再送（同期トラブルの復旧用）。戻り値は送った件数。 */
+  forceResync?(): Promise<number>;
 }
