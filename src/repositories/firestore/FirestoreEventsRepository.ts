@@ -10,12 +10,43 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 import type { CalendarEvent } from '@/types';
-import { firebaseAuth, firebaseDb } from '@/services/firebase/firebaseApp';
+import { firebaseApp, firebaseAuth, firebaseDb } from '@/services/firebase/firebaseApp';
 import type { IEventsRepository } from '@/repositories/events/IEventsRepository';
 import { localStore } from '@/repositories/db/LocalStore';
 
 const COL = 'events';
 const CACHE_KEY = 'firestore_events_cache';
+
+type FirestoreRestValue = {
+  stringValue?: string;
+  integerValue?: string;
+  doubleValue?: number;
+  booleanValue?: boolean;
+  nullValue?: null;
+  timestampValue?: string;
+  mapValue?: { fields?: Record<string, FirestoreRestValue> };
+};
+
+function restValueToJs(value: FirestoreRestValue): unknown {
+  if ('stringValue' in value) return value.stringValue;
+  if ('integerValue' in value) return Number(value.integerValue);
+  if ('doubleValue' in value) return value.doubleValue;
+  if ('booleanValue' in value) return value.booleanValue;
+  if ('timestampValue' in value) return value.timestampValue;
+  if ('nullValue' in value) return null;
+  if ('mapValue' in value) {
+    const out: Record<string, unknown> = {};
+    for (const [key, child] of Object.entries(value.mapValue?.fields ?? {})) out[key] = restValueToJs(child);
+    return out;
+  }
+  return undefined;
+}
+
+function restFieldsToEvent(fields: Record<string, FirestoreRestValue>): CalendarEvent {
+  const event: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(fields)) event[key] = restValueToJs(value);
+  return event as unknown as CalendarEvent;
+}
 
 // Firestore onSnapshot keeps devices in sync, while local cache keeps the PWA usable offline.
 export class FirestoreEventsRepository implements IEventsRepository {
@@ -35,6 +66,7 @@ export class FirestoreEventsRepository implements IEventsRepository {
       this.unsubscribeEvents = onSnapshot(source, (snap) => {
         this.mergeServerEvents(snap.docs.map((d) => d.data() as CalendarEvent));
       }, () => this.emit());
+      void this.refreshSharedEventsViaRest();
     });
   }
 
@@ -57,6 +89,43 @@ export class FirestoreEventsRepository implements IEventsRepository {
     this.cache = [...server, ...localOnly];
     localStore.set(CACHE_KEY, this.cache);
     this.emit();
+  }
+
+  private async refreshSharedEventsViaRest(): Promise<void> {
+    const user = firebaseAuth().currentUser;
+    const projectId = firebaseApp().options.projectId;
+    if (!user || !projectId || typeof fetch === 'undefined') return;
+
+    const token = await user.getIdToken().catch(() => null);
+    if (!token) return;
+
+    const body = {
+      structuredQuery: {
+        from: [{ collectionId: COL }],
+        where: {
+          compositeFilter: {
+            op: 'AND',
+            filters: [
+              { fieldFilter: { field: { fieldPath: 'calendarType' }, op: 'EQUAL', value: { stringValue: 'shared' } } },
+              { fieldFilter: { field: { fieldPath: 'visibility' }, op: 'EQUAL', value: { stringValue: 'shared' } } },
+            ],
+          },
+        },
+      },
+    };
+
+    const res = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:runQuery`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }).catch(() => null);
+    if (!res?.ok) return;
+
+    const rows = (await res.json().catch(() => [])) as Array<{ document?: { fields?: Record<string, FirestoreRestValue> } }>;
+    const events = rows
+      .map((row) => row.document?.fields && restFieldsToEvent(row.document.fields))
+      .filter((event): event is CalendarEvent => Boolean(event?.appEventId));
+    if (events.length > 0) this.mergeServerEvents(events);
   }
 
   subscribe(listener: (events: CalendarEvent[]) => void): () => void {
