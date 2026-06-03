@@ -2,14 +2,11 @@ import { onAuthStateChanged } from 'firebase/auth';
 import {
   collection,
   doc,
-  getDocs,
   onSnapshot,
   query,
   setDoc,
   serverTimestamp,
   where,
-  type CollectionReference,
-  type Query,
   type Unsubscribe,
 } from 'firebase/firestore';
 import type { CalendarEvent } from '@/types';
@@ -20,40 +17,25 @@ import { localStore } from '@/repositories/db/LocalStore';
 const COL = 'events';
 const CACHE_KEY = 'firestore_events_cache';
 
-function isSharedEvent(event: CalendarEvent): boolean {
-  return event.calendarType === 'shared' && event.visibility === 'shared';
-}
-
 // Firestore onSnapshot keeps devices in sync, while local cache keeps the PWA usable offline.
 export class FirestoreEventsRepository implements IEventsRepository {
   private cache: CalendarEvent[] = localStore.get<CalendarEvent[]>(CACHE_KEY, []);
   private listeners = new Set<(e: CalendarEvent[]) => void>();
   private unsubscribeEvents: Unsubscribe | null = null;
-  private source: CollectionReference | Query | null = null;
 
   constructor() {
     onAuthStateChanged(firebaseAuth(), (user) => {
       this.unsubscribeEvents?.();
       const canReadAll = Boolean(user && !user.isAnonymous);
       const eventsRef = collection(firebaseDb(), COL);
-      this.source = canReadAll
+      const source = canReadAll
         ? eventsRef
         : query(eventsRef, where('calendarType', '==', 'shared'), where('visibility', '==', 'shared'));
 
-      this.unsubscribeEvents = onSnapshot(this.source, (snap) => {
-        this.mergeServerEvents(snap.docs.map((d) => d.data() as CalendarEvent), canReadAll);
+      this.unsubscribeEvents = onSnapshot(source, (snap) => {
+        this.mergeServerEvents(snap.docs.map((d) => d.data() as CalendarEvent));
       }, () => this.emit());
-      void this.refreshFromCloud(canReadAll);
     });
-
-    if (typeof document !== 'undefined') {
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') void this.refreshFromCloud();
-      });
-    }
-    if (typeof window !== 'undefined') {
-      window.setInterval(() => void this.refreshFromCloud(), 30 * 1000);
-    }
   }
 
   private emit(): void {
@@ -69,25 +51,12 @@ export class FirestoreEventsRepository implements IEventsRepository {
     await setDoc(doc(firebaseDb(), COL, event.appEventId), { ...sanitized, _serverUpdatedAt: serverTimestamp() });
   }
 
-  private mergeServerEvents(server: CalendarEvent[], canReadAll = false): void {
+  private mergeServerEvents(server: CalendarEvent[]): void {
     const serverIds = new Set(server.map((e) => e.appEventId));
     const localOnly = this.cache.filter((e) => !serverIds.has(e.appEventId));
     this.cache = [...server, ...localOnly];
     localStore.set(CACHE_KEY, this.cache);
     this.emit();
-
-    for (const event of localOnly) {
-      if (!event.deletedAt && (canReadAll || isSharedEvent(event))) {
-        void this.pushToCloud(event).catch(() => {});
-      }
-    }
-  }
-
-  private async refreshFromCloud(canReadAll = Boolean(firebaseAuth().currentUser && !firebaseAuth().currentUser?.isAnonymous)): Promise<void> {
-    if (!this.source) return;
-    const snap = await getDocs(this.source).catch(() => null);
-    if (!snap) return;
-    this.mergeServerEvents(snap.docs.map((d) => d.data() as CalendarEvent), canReadAll);
   }
 
   subscribe(listener: (events: CalendarEvent[]) => void): () => void {
