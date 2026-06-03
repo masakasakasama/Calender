@@ -23,10 +23,15 @@ export default function App() {
   // レベッカのGoogle予定を自動同期（タブを開かなくても動く）。
   useGoogleSync(user);
 
+  const [cloudError, setCloudError] = useState<string | null>(null);
   // ログイン時に、端末ローカルだけの予定を自動でクラウドへ送り直す（取りこぼし防止）。
+  // 失敗したら理由を画面に出す（原因特定のため）。
   useEffect(() => {
     if (user && services.backendName === 'firebase') {
-      void services.eventsRepo.forceResync?.();
+      services.eventsRepo
+        .forceResync?.()
+        .then((err) => setCloudError(err ?? null))
+        .catch((e) => setCloudError(e instanceof Error ? e.message : String(e)));
     }
   }, [user?.userId]);
 
@@ -95,6 +100,11 @@ export default function App() {
       </header>
 
       <main className="content">
+        {cloudError && (
+          <div className="notice error" style={{ marginBottom: 12 }}>
+            ⚠️ クラウド保存エラー：{cloudError}
+          </div>
+        )}
         {activeTab === 'shared' && (
           <SharedScreen user={user} openAdd={openAdd} onAddHandled={() => setOpenAdd(false)} />
         )}

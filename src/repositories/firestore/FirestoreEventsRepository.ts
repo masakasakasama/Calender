@@ -68,17 +68,18 @@ export class FirestoreEventsRepository implements IEventsRepository {
     return next;
   }
 
-  /** 端末ローカルの全予定をクラウドへ強制再送する（同期トラブルの復旧用）。 */
-  async forceResync(): Promise<number> {
+  /** 端末ローカルの全予定をクラウドへ強制再送する（自動復旧用）。最初のエラー文を返す。 */
+  async forceResync(): Promise<string | null> {
     const list = this.cache.filter((e) => !e.deletedAt);
+    let firstError: string | null = null;
     for (const e of list) {
       try {
         await this.pushToCloud(e);
-      } catch {
-        /* 個別失敗は無視して続行 */
+      } catch (err) {
+        if (!firstError) firstError = err instanceof Error ? err.message : String(err);
       }
     }
-    return list.length;
+    return firstError;
   }
 
   async softDelete(appEventId: string, byUserId: string): Promise<void> {
