@@ -1,18 +1,22 @@
 rules_version = '2';
 
+// =====================================================================
+// calender アプリ用 Firestore ルール（シンプル版）。
+// 許可した2人のメールなら、アプリのデータを全部読み書きできる。
+// （項目ごとの細かい条件で書き込みが弾かれる事故を防ぐため、あえて単純化）
+// =====================================================================
 service cloud.firestore {
   match /databases/{database}/documents {
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Existing warikan-app rules. Keep these so the existing app does not break.
+    // --- 既存 warikan-app 用（壊さないため残す） ---
     function isMember(spaceId) {
       return isSignedIn()
         && exists(/databases/$(database)/documents/spaces/$(spaceId))
         && request.auth.uid in get(/databases/$(database)/documents/spaces/$(spaceId)).data.memberUids;
     }
-
     match /spaces/{spaceId} {
       allow read: if isMember(spaceId);
       allow create: if isSignedIn() && request.auth.uid in request.resource.data.memberUids;
@@ -23,56 +27,20 @@ service cloud.firestore {
       }
     }
 
-    // Couple Calendar rules.
-    function allowedCalendarEmails() {
-      return [
-        'masakasakasama.man@gmail.com',
-        'rere.geier@gmail.com'
-      ];
-    }
-
-    function rebeccaEmail() {
-      return 'rere.geier@gmail.com';
-    }
-
-    function isCalendarAllowed() {
+    // --- calender 用：許可した2人なら全部OK ---
+    function isCalendarUser() {
       return request.auth != null
-        && request.auth.token.email_verified == true
-        && request.auth.token.email.lower() in allowedCalendarEmails();
+        && request.auth.token.email.lower() in [
+          'masakasakasama.man@gmail.com',
+          'rere.geier@gmail.com'
+        ];
     }
 
-    function isRebecca() {
-      return isCalendarAllowed() && request.auth.token.email.lower() == rebeccaEmail();
-    }
-
-    match /events/{eventId} {
-      // 一覧購読(onSnapshot)が拒否されないよう、読み取りは許可ユーザー全体に。
-      // events には共有予定のみ保存される（レベッカの非共有はFirestoreに入れない）。
-      allow read: if isCalendarAllowed();
-      allow create, update, delete: if isCalendarAllowed()
-        && request.resource.data.calendarType == 'shared'
-        && request.resource.data.visibility == 'shared';
-    }
-
-    match /share_links/{linkId} {
-      allow read, write: if isRebecca();
-    }
-
-    match /rebecca_calendar_settings/{settingId} {
-      allow read, write: if isRebecca();
-    }
-
-    match /users/{userId} {
-      allow read, write: if isCalendarAllowed() && request.auth.uid == userId;
-    }
-
-    match /app_config/{document} {
-      allow read, write: if isCalendarAllowed();
-    }
-
-    match /app_versions/{document} {
-      allow read: if isCalendarAllowed();
-      allow write: if false;
-    }
+    match /events/{id}                    { allow read, write: if isCalendarUser(); }
+    match /share_links/{id}               { allow read, write: if isCalendarUser(); }
+    match /rebecca_calendar_settings/{id} { allow read, write: if isCalendarUser(); }
+    match /users/{id}                     { allow read, write: if isCalendarUser(); }
+    match /app_config/{id}                { allow read, write: if isCalendarUser(); }
+    match /app_versions/{id}              { allow read: if isCalendarUser(); allow write: if false; }
   }
 }
