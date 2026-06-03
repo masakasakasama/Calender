@@ -43,8 +43,6 @@ export function EventCard({
           ) : (
             <span className="chip private">非共有</span>
           )}
-          {event.syncStatus === 'pending' && <span className="chip pending">同期待ち</span>}
-          {event.syncStatus === 'error' && <span className="chip error">同期エラー</span>}
           {event.reminderMinutes != null && <span className="chip">通知 {event.reminderMinutes}分前</span>}
           {event.categoryId && <span className="chip">{categoryById(event.categoryId).label}</span>}
         </div>

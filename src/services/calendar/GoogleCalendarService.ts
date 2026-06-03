@@ -235,15 +235,39 @@ export class GoogleCalendarService implements ICalendarService {
     return res.json() as Promise<T>;
   }
 
-  async pushEventToGoogle(calendarId: string, event: CalendarEvent): Promise<string | null> {
-    const base = `/calendars/${encodeURIComponent(calendarId)}/events`;
-    if (event.googleEventId) {
-      // 既存 → patch（更新）
-      await this.authedWrite('PATCH', `${base}/${encodeURIComponent(event.googleEventId)}`, this.toGoogleBody(event));
-      return event.googleEventId;
+  // appEventId から決まる安定したGoogleイベントID（base32hex: 0-9a-v）。
+  // 同じ予定は常に同じIDになるので、何度書き込んでも重複しない。
+  private gcalEventId(appEventId: string): string {
+    let h1 = 0;
+    let h2 = 0;
+    for (let i = 0; i < appEventId.length; i++) {
+      h1 = (h1 * 31 + appEventId.charCodeAt(i)) >>> 0;
+      h2 = (h2 * 131 + appEventId.charCodeAt(i)) >>> 0;
     }
-    const created = await this.authedWrite<{ id: string }>('POST', base, this.toGoogleBody(event));
-    return created?.id ?? null;
+    // 16進(0-9a-f)はbase32hexの一部なので有効。
+    return `ev${h1.toString(16)}${h2.toString(16)}`;
+  }
+
+  async pushEventToGoogle(calendarId: string, event: CalendarEvent): Promise<string | null> {
+    const token = await this.tokenProvider();
+    if (!token) throw new Error('Googleカレンダーに書き込むには、設定でGoogle連携してください');
+    const id = event.googleEventId || this.gcalEventId(event.appEventId);
+    const enc = encodeURIComponent;
+    const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+    const body = JSON.stringify(this.toGoogleBody(event));
+    // 既存なら更新、無ければ同じIDで新規作成（＝重複しない）。
+    let res = await fetch(`${API}/calendars/${enc(calendarId)}/events/${enc(id)}`, { method: 'PATCH', headers, body });
+    if (res.status === 404 || res.status === 410) {
+      res = await fetch(`${API}/calendars/${enc(calendarId)}/events`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ id, ...this.toGoogleBody(event) }),
+      });
+      // 競合(既に作成済み)は実質成功とみなす。
+      if (res.status === 409) return id;
+    }
+    if (!res.ok) throw new Error(`Google Calendar 書き込みエラー: ${res.status}`);
+    return id;
   }
 
   async deleteEventFromGoogle(calendarId: string, googleEventId: string): Promise<void> {

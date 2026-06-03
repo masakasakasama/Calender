@@ -43,40 +43,26 @@ export function useSharedEvents(currentUserId: string | null) {
 
   // アプリで作成した「共有」予定だけを、実際のGoogleカレンダーに反映する。
   // （彼女のGoogle既存予定＝source付き や「自分だけ」はGoogleに書かない）
+  // 実Googleカレンダーへの反映は「裏でこっそり試すだけ」。
+  // アプリ内の共有カレンダーが正本なので、失敗してもエラーは出さない（無言でスキップ）。
   async function pushSharedToGoogle(ev: CalendarEvent): Promise<void> {
     if (ev.visibility !== 'shared' || ev.sourceGoogleEventId) return;
     const gcal = googleSharedCalId();
-    if (!gcal) {
-      await services.eventsRepo.upsert({ ...ev, syncStatus: 'error', syncError: '共有Googleカレンダーが未設定です' });
-      return;
-    }
-    if (!services.calendar.pushEventToGoogle) return;
-    if (!(services.auth.isGoogleCalendarConnected?.() ?? true)) {
-      await services.eventsRepo.upsert({
-        ...ev,
-        syncStatus: 'error',
-        syncError: '設定でGoogleカレンダー連携をしてください（未連携のため書き込めません）',
-      });
-      return;
-    }
+    if (!gcal || !services.calendar.pushEventToGoogle) return;
+    if (!(services.auth.isGoogleCalendarConnected?.() ?? true)) return; // 未連携なら静かにスキップ
     try {
       const gid = await services.calendar.pushEventToGoogle(gcal, ev);
-      await services.eventsRepo.upsert({
-        ...ev,
-        googleEventId: gid,
-        googleCalendarId: gcal,
-        syncStatus: 'synced',
-        syncError: null,
-      });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      await services.eventsRepo.upsert({ ...ev, syncStatus: 'error', syncError: msg });
+      if (gid) {
+        await services.eventsRepo.upsert({ ...ev, googleEventId: gid, googleCalendarId: gcal, syncStatus: 'synced', syncError: null });
+      }
+    } catch {
+      /* Googleへの反映は任意。失敗しても何もしない（アプリ内の共有予定は有効） */
     }
   }
 
-  // 同期エラーの予定をGoogleへ再送する。
+  // 任意：Googleへ手動で再反映（裏で試すだけ）。
   const resyncEvent = useCallback(async (ev: CalendarEvent) => {
-    await pushSharedToGoogle({ ...ev, syncStatus: 'pending' });
+    await pushSharedToGoogle(ev);
   }, []);
 
   const createEvent = useCallback(
@@ -120,7 +106,7 @@ export function useSharedEvents(currentUserId: string | null) {
           sharedGoogleCalendarId: sharedCalendarId,
           sharedGoogleEventId: null,
           visibility: input.visibility, // 自分だけ / 共有
-          syncStatus: 'pending',
+          syncStatus: 'synced', // アプリ内共有を正本とし、エラー表示は出さない
           createdAt: now,
           updatedAt: now,
           deletedAt: null,
@@ -144,7 +130,7 @@ export function useSharedEvents(currentUserId: string | null) {
   const updateEvent = useCallback(
     async (ev: CalendarEvent) => {
       const uid = currentUserId ?? 'unknown';
-      const saved = await services.eventsRepo.upsert({ ...ev, updatedBy: uid, syncStatus: 'pending', version: (ev.version ?? 1) + 1 });
+      const saved = await services.eventsRepo.upsert({ ...ev, updatedBy: uid, syncStatus: 'synced', version: (ev.version ?? 1) + 1 });
       services.notifications.scheduleEventReminder(saved);
       await pushSharedToGoogle(saved);
       return saved;
