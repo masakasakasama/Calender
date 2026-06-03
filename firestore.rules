@@ -1,22 +1,19 @@
 rules_version = '2';
 
-// =====================================================================
-// calender アプリ用 Firestore ルール（シンプル版）。
-// 許可した2人のメールなら、アプリのデータを全部読み書きできる。
-// （項目ごとの細かい条件で書き込みが弾かれる事故を防ぐため、あえて単純化）
-// =====================================================================
+// Firestore rules for calender plus the existing warikan-app data.
 service cloud.firestore {
   match /databases/{database}/documents {
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // --- 既存 warikan-app 用（壊さないため残す） ---
+    // Existing warikan-app rules. Keep these so the existing app does not break.
     function isMember(spaceId) {
       return isSignedIn()
         && exists(/databases/$(database)/documents/spaces/$(spaceId))
         && request.auth.uid in get(/databases/$(database)/documents/spaces/$(spaceId)).data.memberUids;
     }
+
     match /spaces/{spaceId} {
       allow read: if isMember(spaceId);
       allow create: if isSignedIn() && request.auth.uid in request.resource.data.memberUids;
@@ -27,7 +24,6 @@ service cloud.firestore {
       }
     }
 
-    // --- calender 用：許可した2人なら全部OK ---
     function isCalendarUser() {
       return request.auth != null
         && request.auth.token.email.lower() in [
@@ -36,11 +32,43 @@ service cloud.firestore {
         ];
     }
 
-    match /events/{id}                    { allow read, write: if isCalendarUser(); }
-    match /share_links/{id}               { allow read, write: if isCalendarUser(); }
-    match /rebecca_calendar_settings/{id} { allow read, write: if isCalendarUser(); }
-    match /users/{id}                     { allow read, write: if isCalendarUser(); }
-    match /app_config/{id}                { allow read, write: if isCalendarUser(); }
-    match /app_versions/{id}              { allow read: if isCalendarUser(); allow write: if false; }
+    function isAnonymousCalendarSession() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'anonymous';
+    }
+
+    function isSharedEvent(data) {
+      return data.calendarType == 'shared'
+        && data.visibility == 'shared';
+    }
+
+    match /events/{id} {
+      allow read: if isCalendarUser()
+        || (isAnonymousCalendarSession() && isSharedEvent(resource.data));
+      allow create, update: if (isCalendarUser() || isAnonymousCalendarSession())
+        && isSharedEvent(request.resource.data);
+      allow delete: if false;
+    }
+
+    match /share_links/{id} {
+      allow read, write: if isCalendarUser();
+    }
+
+    match /rebecca_calendar_settings/{id} {
+      allow read, write: if isCalendarUser();
+    }
+
+    match /users/{id} {
+      allow read, write: if isCalendarUser();
+    }
+
+    match /app_config/{id} {
+      allow read, write: if isCalendarUser();
+    }
+
+    match /app_versions/{id} {
+      allow read: if isCalendarUser();
+      allow write: if false;
+    }
   }
 }

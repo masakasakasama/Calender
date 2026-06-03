@@ -2,6 +2,7 @@ import {
   GoogleAuthProvider,
   browserLocalPersistence,
   indexedDBLocalPersistence,
+  signInAnonymously,
   signInWithPopup,
   signOut as fbSignOut,
   onAuthStateChanged as fbOnAuthStateChanged,
@@ -9,7 +10,7 @@ import {
   type User as FbUser,
 } from 'firebase/auth';
 import type { User } from '@/types';
-import { isAllowedUser, resolveRole } from '@/config/appConfig';
+import { APP_CONFIG, isAllowedUser, resolveRole } from '@/config/appConfig';
 import { firebaseAuth } from '@/services/firebase/firebaseApp';
 import type { IUsersRepository } from '@/repositories/users/IUsersRepository';
 import type { IAuthService } from './IAuthService';
@@ -65,6 +66,26 @@ function appUserFromStoredAuth(stored: {
     email: stored.email.toLowerCase(),
     role,
     photoURL: stored.photoURL ?? null,
+    notificationEnabled: false,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function localFallbackUser(): User {
+  const hasRebeccaCache =
+    typeof localStorage !== 'undefined' &&
+    (localStorage.getItem('firestore_rebecca_settings_cache') != null ||
+      localStorage.getItem('rebecca_calendar_settings') != null);
+  const email = hasRebeccaCache ? APP_CONFIG.rebeccaEmail : APP_CONFIG.partnerEmail;
+  const role = resolveRole(email) ?? 'partner';
+  const now = new Date().toISOString();
+  return {
+    userId: `local-${role}`,
+    displayName: role === 'rebecca' ? 'レベッカ' : 'TATSUYA KAWAMURA',
+    email,
+    role,
+    photoURL: null,
     notificationEnabled: false,
     createdAt: now,
     updatedAt: now,
@@ -184,18 +205,32 @@ export class FirebaseAuthService implements IAuthService {
     return this.current;
   }
 
+  private async ensureAnonymousFirebaseSession(): Promise<void> {
+    const auth = firebaseAuth();
+    if (auth.currentUser) return;
+    await setPersistence(auth, indexedDBLocalPersistence).catch(() => setPersistence(auth, browserLocalPersistence));
+    await signInAnonymously(auth).catch(() => {});
+  }
+
   onAuthStateChanged(listener: (user: User | null) => void): () => void {
     return fbOnAuthStateChanged(firebaseAuth(), async (fb) => {
       if (fb && isAllowedUser(fb.email)) {
         const user = toAppUser(fb);
         this.current = user;
         this.rememberCachedUser(user);
-        // users コレクションへ自分を upsert（プロフィール同期）。
         await this.users.upsert(user).catch(() => {});
         listener(user);
       } else {
-        if (fb) await fbSignOut(firebaseAuth()).catch(() => {}); // 許可外は即サインアウト
-        this.current = this.restoreCachedUser() ?? (await this.restoreFirebaseIndexedDbUser());
+        if (fb?.isAnonymous) {
+          this.current = this.restoreCachedUser() ?? (await this.restoreFirebaseIndexedDbUser()) ?? localFallbackUser();
+          this.rememberCachedUser(this.current);
+          listener(this.current);
+          return;
+        }
+        if (fb) await fbSignOut(firebaseAuth()).catch(() => {});
+        this.current = this.restoreCachedUser() ?? (await this.restoreFirebaseIndexedDbUser()) ?? localFallbackUser();
+        this.rememberCachedUser(this.current);
+        if (this.current) await this.ensureAnonymousFirebaseSession();
         listener(this.current);
       }
     });
