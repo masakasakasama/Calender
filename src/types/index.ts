@@ -44,7 +44,7 @@ export interface RebeccaCalendarSetting {
   updatedAt: string;
 }
 
-export type CalendarType = 'shared' | 'rebecca_source';
+export type CalendarType = 'shared' | 'rebecca_source' | 'plan_idea';
 export type EventVisibility = 'shared' | 'private';
 export type SyncStatus = 'synced' | 'pending' | 'error';
 export type RecurrenceFrequency = 'none' | 'daily' | 'weekly' | 'monthly';
