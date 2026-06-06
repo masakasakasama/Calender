@@ -25,7 +25,7 @@
 1. スマホのブラウザ（アプリではなく **Chrome/Safariのブラウザ版**）で
    https://github.com/masakasakasama/Calender/settings/secrets/actions を開く
 2. 「**New repository secret**」をタップ
-3. Name に **`GEMINI_API_KEY`** と入力
+3. Name に **`GEMINI_API_KEY_CALENDER`** と入力
 4. Secret にステップ1でコピーしたキーを貼り付け
 5. 「**Add secret**」をタップ
 
@@ -66,7 +66,7 @@
 
 - アプリ（`src/services/ai/AiPlanService.ts`）から Gemini の
   `generativelanguage` API を `google_search` グラウンディング付きで直接呼びます。
-- キーは GitHub Secret `GEMINI_API_KEY` → ビルド時に `VITE_GEMINI_API_KEY` として注入。
+- キーは GitHub Secret `GEMINI_API_KEY_CALENDER` → ビルド時に `VITE_GEMINI_API_KEY` として注入。
 - キー未登録でもアプリは壊れず、「🔍 かわりにWebで検索」ボタンにフォールバックします。
 
 （補足：`functions/` 配下にサーバー版の実装も残してあります。将来キーを完全に
