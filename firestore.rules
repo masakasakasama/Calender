@@ -45,8 +45,10 @@ service cloud.firestore {
     match /events/{id} {
       allow read: if isCalendarUser()
         || (isAnonymousCalendarSession() && isSharedEvent(resource.data));
-      allow create, update: if (isCalendarUser() || isAnonymousCalendarSession())
-        && isSharedEvent(request.resource.data);
+      // 許可された2人はどの種類のイベント（plan_idea / rebecca_source 等）でも書ける。
+      // 匿名セッションは共有イベントのみ作成/更新できる。
+      allow create, update: if isCalendarUser()
+        || (isAnonymousCalendarSession() && isSharedEvent(request.resource.data));
       allow delete: if false;
     }
 
