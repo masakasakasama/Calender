@@ -2,7 +2,6 @@ import {
   GoogleAuthProvider,
   browserLocalPersistence,
   indexedDBLocalPersistence,
-  signInAnonymously,
   signInWithPopup,
   signOut as fbSignOut,
   onAuthStateChanged as fbOnAuthStateChanged,
@@ -10,7 +9,7 @@ import {
   type User as FbUser,
 } from 'firebase/auth';
 import type { User } from '@/types';
-import { APP_CONFIG, isAllowedUser, resolveRole } from '@/config/appConfig';
+import { isAllowedUser, resolveRole } from '@/config/appConfig';
 import { firebaseAuth } from '@/services/firebase/firebaseApp';
 import type { IUsersRepository } from '@/repositories/users/IUsersRepository';
 import type { IAuthService } from './IAuthService';
@@ -18,8 +17,6 @@ import type { IAuthService } from './IAuthService';
 const GCAL_TOKEN_KEY = 'calender_google_calendar_access_token';
 const GCAL_TOKEN_EXPIRES_KEY = 'calender_google_calendar_access_token_expires_at';
 const APP_USER_CACHE_KEY = 'calender_last_signed_in_user';
-const FIREBASE_AUTH_DB = 'firebaseLocalStorageDb';
-const FIREBASE_AUTH_STORE = 'firebaseLocalStorage';
 
 // =====================================================================
 // 本番の Googleログイン。Firebase Auth + GoogleAuthProvider。
@@ -72,26 +69,6 @@ function appUserFromStoredAuth(stored: {
   };
 }
 
-function localFallbackUser(): User {
-  const hasRebeccaCache =
-    typeof localStorage !== 'undefined' &&
-    (localStorage.getItem('firestore_rebecca_settings_cache') != null ||
-      localStorage.getItem('rebecca_calendar_settings') != null);
-  const email = hasRebeccaCache ? APP_CONFIG.rebeccaEmail : APP_CONFIG.partnerEmail;
-  const role = resolveRole(email) ?? 'partner';
-  const now = new Date().toISOString();
-  return {
-    userId: `local-${role}`,
-    displayName: role === 'rebecca' ? 'レベッカ' : 'TATSUYA KAWAMURA',
-    email,
-    role,
-    photoURL: null,
-    notificationEnabled: false,
-    createdAt: now,
-    updatedAt: now,
-  };
-}
-
 export class FirebaseAuthService implements IAuthService {
   private current: User | null = this.restoreCachedUser();
   private googleAccessToken: string | null = this.restoreGoogleAccessToken();
@@ -123,49 +100,6 @@ export class FirebaseAuthService implements IAuthService {
       }
     }
     return null;
-  }
-
-  private restoreFirebaseIndexedDbUser(): Promise<User | null> {
-    if (typeof indexedDB === 'undefined') return Promise.resolve(null);
-    return new Promise((resolve) => {
-      const request = indexedDB.open(FIREBASE_AUTH_DB);
-      request.onerror = () => resolve(null);
-      request.onupgradeneeded = () => {
-        request.transaction?.abort();
-        resolve(null);
-      };
-      request.onsuccess = () => {
-        const db = request.result;
-        if (!db.objectStoreNames.contains(FIREBASE_AUTH_STORE)) {
-          db.close();
-          resolve(null);
-          return;
-        }
-        const tx = db.transaction(FIREBASE_AUTH_STORE, 'readonly');
-        const store = tx.objectStore(FIREBASE_AUTH_STORE);
-        const cursor = store.openCursor();
-        let done = false;
-        const finish = (user: User | null) => {
-          if (done) return;
-          done = true;
-          db.close();
-          if (user) this.rememberCachedUser(user);
-          resolve(user);
-        };
-        cursor.onerror = () => finish(null);
-        cursor.onsuccess = () => {
-          const cur = cursor.result;
-          if (!cur) {
-            finish(null);
-            return;
-          }
-          const value = cur.value as { value?: unknown };
-          const user = appUserFromStoredAuth(value.value ?? value);
-          if (user) finish(user);
-          else cur.continue();
-        };
-      };
-    });
   }
 
   private rememberCachedUser(user: User | null): void {
@@ -205,13 +139,6 @@ export class FirebaseAuthService implements IAuthService {
     return this.current;
   }
 
-  private async ensureAnonymousFirebaseSession(): Promise<void> {
-    const auth = firebaseAuth();
-    if (auth.currentUser) return;
-    await setPersistence(auth, indexedDBLocalPersistence).catch(() => setPersistence(auth, browserLocalPersistence));
-    await signInAnonymously(auth).catch(() => {});
-  }
-
   onAuthStateChanged(listener: (user: User | null) => void): () => void {
     return fbOnAuthStateChanged(firebaseAuth(), async (fb) => {
       if (fb && isAllowedUser(fb.email)) {
@@ -221,17 +148,14 @@ export class FirebaseAuthService implements IAuthService {
         await this.users.upsert(user).catch(() => {});
         listener(user);
       } else {
-        if (fb?.isAnonymous) {
-          this.current = this.restoreCachedUser() ?? (await this.restoreFirebaseIndexedDbUser()) ?? localFallbackUser();
-          this.rememberCachedUser(this.current);
-          listener(this.current);
-          return;
-        }
+        // 本物のGoogleセッションが無いときは「ログイン画面」に戻す。
+        // 以前は匿名サインインでログイン済みに見せかけていたが、匿名トークンには
+        // メールが無く Firestore の権限が無い（=「権限がありません」/同期不能）。
+        // 必ず本人のGoogleでサインインさせることで、読み書き権限を確実にする。
         if (fb) await fbSignOut(firebaseAuth()).catch(() => {});
-        this.current = this.restoreCachedUser() ?? (await this.restoreFirebaseIndexedDbUser()) ?? localFallbackUser();
-        this.rememberCachedUser(this.current);
-        if (this.current) await this.ensureAnonymousFirebaseSession();
-        listener(this.current);
+        this.current = null;
+        this.rememberCachedUser(null);
+        listener(null);
       }
     });
   }

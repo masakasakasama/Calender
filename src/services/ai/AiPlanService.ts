@@ -105,8 +105,6 @@ function sanitizePlans(parsed: unknown): AiPlan[] {
   });
 }
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
 interface CallResult {
   status: number; // 0 = ネットワーク失敗
   text: string;
@@ -155,22 +153,13 @@ export async function fetchAiPlans(req: AiPlanRequest): Promise<AiPlanResult> {
   }
   const prompt = buildPrompt(req);
 
-  // 1) Google検索つきを優先。429（レート/上限）は短い待機でリトライ。
-  let lastStatus = 0;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const r = await callGemini(prompt, true);
-    lastStatus = r.status;
-    if (r.status === 200) {
-      const plans = parse(r.text);
-      if (plans.length > 0) return { ok: true, plans, grounded: true };
-      break; // 200だが解釈不可 → 検索なしフォールバックへ
-    }
-    if (r.status === 429) {
-      await sleep(1500 * (attempt + 1)); // 1.5s, 3s
-      continue;
-    }
-    break; // その他のエラーはリトライしない
+  // 1) Google検索つきを優先（無料枠を無駄に消費しないようリトライは控えめ）。
+  const r1 = await callGemini(prompt, true);
+  if (r1.status === 200) {
+    const plans = parse(r1.text);
+    if (plans.length > 0) return { ok: true, plans, grounded: true };
   }
+  const lastStatus = r1.status;
 
   // 2) フォールバック：Google検索なしでAI提案（無料枠で通りやすい）。
   const r2 = await callGemini(prompt, false);
