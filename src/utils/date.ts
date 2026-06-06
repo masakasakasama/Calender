@@ -54,6 +54,43 @@ export function fmtDateTimeRange(startIso: string, endIso: string): string {
   return `${head} – ${fmtYmd(e)} ${fmtTime(endIso)}`;
 }
 
+/** yyyy/MM/dd(曜) 形式。 */
+export function fmtDateWithDay(iso: string): string {
+  const d = new Date(iso);
+  return `${fmtYmd(d)}(${WEEKDAYS[d.getDay()]})`;
+}
+
+/** 終日予定の日付表記（1日なら「日付 終日」、複数日なら範囲）。 */
+export function fmtAllDayRange(startIso: string, endIso: string): string {
+  const s = new Date(startIso);
+  const e = new Date(endIso);
+  if (sameDay(s, e)) return `${fmtDateWithDay(startIso)} 終日`;
+  return `${fmtDateWithDay(startIso)} – ${fmtDateWithDay(endIso)} 終日`;
+}
+
+/** date input 用文字列（yyyy-MM-dd・ローカル）。 */
+export function toDateInput(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+export function fromDateInput(value: string): string {
+  const [y, m, dd] = value.split('-').map(Number);
+  return new Date(y, (m ?? 1) - 1, dd ?? 1, 0, 0, 0, 0).toISOString();
+}
+
+export function startOfDayIso(iso: string): string {
+  const d = new Date(iso);
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString();
+}
+
+export function endOfDayIso(iso: string): string {
+  const d = new Date(iso);
+  d.setHours(23, 59, 59, 999);
+  return d.toISOString();
+}
+
 export function fmtMonthTitle(d: Date): string {
   return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}`;
 }

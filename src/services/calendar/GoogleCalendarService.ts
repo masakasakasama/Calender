@@ -143,6 +143,7 @@ export class GoogleCalendarService implements ICalendarService {
             location: ev.location ?? '',
             start: toIso(ev.start),
             end: toIso(ev.end),
+            allDay: Boolean(ev.start?.date && !ev.start?.dateTime),
             reminderMinutes: null,
             color, // Googleカレンダーの実際の色
             emoji: suggestEmoji(title), // タイトルから絵文字（アイコン表示用）
@@ -211,12 +212,23 @@ export class GoogleCalendarService implements ICalendarService {
   // --- 実際のGoogleカレンダーへの書き込み -----------------------------
   private toGoogleBody(event: CalendarEvent): Record<string, unknown> {
     const title = `${event.emoji ? event.emoji + ' ' : ''}${event.title}`;
+    // 終日予定は date（YYYY-MM-DD）で送る。Googleの終了日は排他なので翌日にする。
+    const ymdLocal = (iso: string) => {
+      const d = new Date(iso);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+    const timeFields = event.allDay
+      ? (() => {
+          const endNext = new Date(event.end);
+          endNext.setDate(endNext.getDate() + 1);
+          return { start: { date: ymdLocal(event.start) }, end: { date: ymdLocal(endNext.toISOString()) } };
+        })()
+      : { start: { dateTime: new Date(event.start).toISOString() }, end: { dateTime: new Date(event.end).toISOString() } };
     return {
       summary: title,
       description: event.description || undefined,
       location: event.location || undefined,
-      start: { dateTime: new Date(event.start).toISOString() },
-      end: { dateTime: new Date(event.end).toISOString() },
+      ...timeFields,
       // アプリ側IDを保持して重複・対応付けを管理。
       extendedProperties: { private: { appEventId: event.appEventId } },
     };

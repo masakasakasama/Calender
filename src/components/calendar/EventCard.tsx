@@ -1,5 +1,5 @@
 import type { CalendarEvent } from '@/types';
-import { fmtDateTimeRange } from '@/utils/date';
+import { fmtDateTimeRange, fmtAllDayRange } from '@/utils/date';
 import { categoryById, eventDisplayColor } from '@/utils/eventStyle';
 import { openInMaps } from '@/utils/maps';
 
@@ -23,7 +23,7 @@ export function EventCard({
       onClick={onClick}
     >
       <div style={{ flex: 1 }}>
-        <div className="etime">{fmtDateTimeRange(event.start, event.end)}</div>
+        <div className="etime">{event.allDay ? fmtAllDayRange(event.start, event.end) : fmtDateTimeRange(event.start, event.end)}</div>
         <div className="etitle">
           {event.emoji && <span style={{ marginRight: 6 }}>{event.emoji}</span>}
           {event.title}

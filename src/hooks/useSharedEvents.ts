@@ -72,6 +72,7 @@ export function useSharedEvents(currentUserId: string | null) {
       location: string;
       start: string;
       end: string;
+      allDay?: boolean;
       reminderMinutes: number | null;
       color: string | null;
       emoji: string | null;

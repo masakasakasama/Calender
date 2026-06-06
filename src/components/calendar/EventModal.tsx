@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { CalendarEvent, EventVisibility, EventRecurrence } from '@/types';
-import { fmtDateTimeRange } from '@/utils/date';
+import { fmtDateTimeRange, fmtAllDayRange, startOfDayIso, endOfDayIso } from '@/utils/date';
 import { DateTimeField } from './DateTimeField';
 import { EVENT_COLORS, DEFAULT_COLOR, EMOJI_PALETTE, EVENT_CATEGORIES, categoryById, suggestEmoji } from '@/utils/eventStyle';
 import { openInMaps } from '@/utils/maps';
@@ -13,6 +13,7 @@ export interface EventFormValue {
   location: string;
   start: string;
   end: string;
+  allDay: boolean;
   reminderMinutes: number | null;
   color: string | null;
   emoji: string | null;
@@ -50,6 +51,7 @@ export function EventModal({
     location: event?.location ?? initial?.location ?? '',
     start: event?.start ?? initial?.start ?? now.toISOString(),
     end: event?.end ?? initial?.end ?? later.toISOString(),
+    allDay: event?.allDay ?? initial?.allDay ?? false,
     reminderMinutes: event?.reminderMinutes ?? initial?.reminderMinutes ?? 15,
     color: event?.color ?? initial?.color ?? DEFAULT_COLOR,
     emoji: event?.emoji ?? initial?.emoji ?? suggestEmoji(initialTitle),
@@ -65,7 +67,7 @@ export function EventModal({
   const [error, setError] = useState<string | null>(null);
   const swipe = useSwipeDownClose(onClose);
 
-  const set = (k: keyof EventFormValue, val: string | number | EventRecurrence | null) => setV((s) => ({ ...s, [k]: val }));
+  const set = (k: keyof EventFormValue, val: string | number | boolean | EventRecurrence | null) => setV((s) => ({ ...s, [k]: val }));
 
   const onTitleChange = (title: string) => {
     setV((s) => ({
@@ -96,7 +98,11 @@ export function EventModal({
     setError(null);
     setSaving(true);
     try {
-      await onSave(v);
+      // 終日なら開始=その日の0:00、終了=その日の23:59に揃える。
+      const payload: EventFormValue = v.allDay
+        ? { ...v, start: startOfDayIso(v.start), end: endOfDayIso(v.end), reminderMinutes: v.reminderMinutes }
+        : v;
+      await onSave(payload);
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : '保存に失敗しました');
@@ -186,12 +192,24 @@ export function EventModal({
             </div>
 
             <div className="field">
-              <label>開始</label>
-              <DateTimeField value={v.start} onChange={(iso) => set('start', iso)} />
+              <label>終日</label>
+              <div className="seg">
+                <button type="button" className={!v.allDay ? 'active' : ''} onClick={() => set('allDay', false)}>
+                  🕒 時間を指定
+                </button>
+                <button type="button" className={v.allDay ? 'active' : ''} onClick={() => set('allDay', true)}>
+                  📅 終日
+                </button>
+              </div>
+            </div>
+
+            <div className="field">
+              <label>{v.allDay ? '開始日' : '開始'}</label>
+              <DateTimeField value={v.start} onChange={(iso) => set('start', iso)} dateOnly={v.allDay} />
             </div>
             <div className="field">
-              <label>終了</label>
-              <DateTimeField value={v.end} onChange={(iso) => set('end', iso)} />
+              <label>{v.allDay ? '終了日' : '終了'}</label>
+              <DateTimeField value={v.end} onChange={(iso) => set('end', iso)} dateOnly={v.allDay} />
             </div>
 
             <div className="field">
@@ -268,7 +286,7 @@ export function EventModal({
               <span style={{ marginRight: 8 }}>{v.emoji ?? '📌'}</span>
               {v.title}
             </h3>
-            <p className="muted">{fmtDateTimeRange(v.start, v.end)}</p>
+            <p className="muted">{v.allDay ? fmtAllDayRange(v.start, v.end) : fmtDateTimeRange(v.start, v.end)}</p>
             {v.location && (
               <button type="button" className="loc-link" onClick={() => openInMaps(v.location)}>
                 📍 {v.location} <span className="loc-open">Googleマップで開く ›</span>
