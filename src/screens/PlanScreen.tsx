@@ -5,7 +5,7 @@ import { usePlanIdeas } from '@/hooks/usePlanIdeas';
 import { EventModal, type EventFormValue } from '@/components/calendar/EventModal';
 import { suggestPlans, planToInitial, isWeekend, TIER_LABEL } from '@/utils/datePlans';
 import { addDays, fmtYmd, WEEKDAY_LABELS } from '@/utils/date';
-import { openInMaps } from '@/utils/maps';
+import { openInMaps, openEventSearch } from '@/utils/maps';
 
 // プランタブ：
 //  1) やりたいことメモ（日付なしで保存・2人で共有）
@@ -21,6 +21,7 @@ export function PlanScreen({ user }: { user: User }) {
   const [location, setLocation] = useState('');
   const [desc, setDesc] = useState('');
   const [saving, setSaving] = useState(false);
+  const [searchArea, setSearchArea] = useState('');
 
   const saveIdea = async () => {
     if (!title.trim() && !location.trim() && !desc.trim()) return;
@@ -64,6 +65,18 @@ export function PlanScreen({ user }: { user: User }) {
 
   return (
     <div>
+      {/* --- その土地のイベントをライブ検索 --- */}
+      <div className="section-title">その土地のイベントを探す</div>
+      <div className="card" style={{ marginBottom: 16 }}>
+        <p className="muted" style={{ marginBottom: 10 }}>
+          行きたい場所を入れて検索すると、その地域の“今”のイベント・お祭り（例：スペインのトマト祭り）が出ます。良さそうなら下のメモに保存。
+        </p>
+        <div className="loc-row">
+          <input value={searchArea} onChange={(e) => setSearchArea(e.target.value)} placeholder="例: スペイン / 京都 / お台場" />
+          <button type="button" className="btn sm" onClick={() => openEventSearch(searchArea)}>🔍 検索</button>
+        </div>
+      </div>
+
       {/* --- やりたいことメモ（日付なし） --- */}
       <div className="section-title">やりたいこと・行きたい場所メモ</div>
       <div className="card" style={{ marginBottom: 16 }}>

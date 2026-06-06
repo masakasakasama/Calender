@@ -11,3 +11,11 @@ export function openInMaps(query: string): void {
   if (!q) return;
   window.open(mapsSearchUrl(q), '_blank', 'noopener,noreferrer');
 }
+
+// その土地のイベント/祭りをWebでライブにGoogle検索する。
+export function openEventSearch(area: string): void {
+  const a = area.trim() || '東京';
+  const now = new Date();
+  const q = `${a} イベント 祭り ${now.getFullYear()}年${now.getMonth() + 1}月`;
+  window.open(`https://www.google.com/search?q=${encodeURIComponent(q)}`, '_blank', 'noopener,noreferrer');
+}
