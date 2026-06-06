@@ -1,75 +1,73 @@
-# AIデートプラン提案のセットアップ
+# AIおすすめイベントのセットアップ（スマホだけでOK）
 
-プランタブの「✨ AIでおすすめを探す」は、Cloud Functions 経由で Gemini API を呼び、
-Web検索（Google検索グラウンディング）でその土地の“今”のイベントまで調べて提案します。
+プランタブの「✨ 今週のおすすめイベント」は、Gemini API を Web検索付きで呼んで、
+その土地の“今”のイベント・お祭り（例：スペインのトマト祭り）を画像付きで提案します。
 
-セットアップは **1回だけ**。以下を順にやればOKです（所要5〜10分）。
-
----
-
-## 前提
-
-- Firebase プロジェクト: `warikan-app-120fd`
-- 課金プラン: **Blaze（従量課金）** が有効（✅ 有効化済み）
-- ローカルに Node 20 と Firebase CLI
-
-```bash
-npm install -g firebase-tools
-firebase login
-```
+サーバー（Cloud Functions）は不要。**スマホのブラウザだけ**で設定できます。
+やることは大きく2つ、合計5分くらい。
 
 ---
 
-## 1. Gemini APIキーを取得
+## ステップ1：Gemini APIキーを作る（スマホでOK）
 
-1. https://aistudio.google.com/app/apikey を開く
-2. 「Create API key」→ プロジェクト `warikan-app-120fd` を選んで作成
-3. 表示されたキー（`AIza...`）をコピー
+1. スマホのブラウザで https://aistudio.google.com/app/apikey を開く
+2. Googleでログイン（プロジェクトの持ち主アカウント `warikan-app-120fd`）
+3. 「**Create API key（APIキーを作成）**」をタップ
+4. プロジェクト `warikan-app-120fd` を選んで作成
+5. 出てきたキー（`AIza...`）を**コピー**
 
-> 無料枠があり、2人で使う範囲なら基本的に無料〜ごくわずかです。
-
----
-
-## 2. APIキーを Functions のシークレットに登録
-
-リポジトリのルートで:
-
-```bash
-firebase functions:secrets:set GEMINI_API_KEY
-```
-
-聞かれたら、さっきコピーしたキーを貼り付けて Enter。
+> 無料枠があり、2人で使う分にはほぼ無料です。
 
 ---
 
-## 3. 依存をインストールしてデプロイ
+## ステップ2：GitHubにキーを登録する（スマホのブラウザでOK）
 
-```bash
-cd functions
-npm install
-cd ..
-firebase deploy --only functions
-```
+1. スマホのブラウザ（アプリではなく **Chrome/Safariのブラウザ版**）で
+   https://github.com/masakasakasama/Calender/settings/secrets/actions を開く
+2. 「**New repository secret**」をタップ
+3. Name に **`GEMINI_API_KEY`** と入力
+4. Secret にステップ1でコピーしたキーを貼り付け
+5. 「**Add secret**」をタップ
 
-デプロイ完了後、`suggestPlans`（リージョン `asia-northeast1`）が作成されます。
+これで完了。次にアプリが自動ビルド・デプロイされると、AIが有効になります。
 
----
-
-## 4. 動作確認
-
-1. アプリを開く（許可された2人のアカウントでログイン）
-2. プランタブ →「✨ AIでおすすめを探す」
-3. 「スペイン」などを入れて「✨ AI提案」
-
-> まだデプロイしていない / 失敗した場合でも、アプリは壊れず
-> 「かわりにWebで検索する」ボタンが出るので普通に使えます。
+> ※ GitHubのスマホアプリだと Secrets 画面が無いことがあります。
+>   その場合は「ブラウザでデスクトップ表示」にして上のURLを開いてください。
 
 ---
 
-## 仕組み・安全性
+## ステップ3：反映を待つ（自動）
 
-- APIキーはクライアントには出ず、Functions のシークレットにだけ保存されます。
-- `suggestPlans` は許可された2人のメール
-  （`masakasakasama.man@gmail.com` / `rere.geier@gmail.com`）以外は呼べません。
-- モデルは `gemini-2.0-flash` ＋ `google_search` グラウンディング。
-- 実装: `functions/src/index.ts` / クライアント: `src/services/ai/AiPlanService.ts`
+- Secret を入れた後、コードが更新されると GitHub Actions が自動でビルド＆デプロイします。
+- すぐ反映したい場合は、リポジトリの **Actions タブ → Deploy to GitHub Pages →
+  「Run workflow」** を押すと手動で再デプロイできます（スマホのブラウザ可）。
+- 数分後にアプリのプランタブを開くと、今週のおすすめイベントが画像付きで出ます🎉
+
+---
+
+## （任意・おすすめ）キーの悪用を防ぐ制限
+
+このキーはアプリ（公開ページ）に埋め込まれるため、念のため利用元を縛っておくと安心です。
+
+1. https://console.cloud.google.com/apis/credentials を開く（プロジェクト warikan-app-120fd）
+2. 作ったAPIキーをタップ
+3. 「アプリケーションの制限」→「**HTTPリファラー**」を選ぶ
+4. 次を追加:
+   - `https://masakasakasama.github.io/*`
+5. 「APIの制限」→「Generative Language API」だけ許可
+6. 保存
+
+> これをやると、他人がキーを抜き出してもこのアプリ以外からは使えません。
+> 無料枠もあるので必須ではありませんが、やっておくと安全です。
+
+---
+
+## 仕組み
+
+- アプリ（`src/services/ai/AiPlanService.ts`）から Gemini の
+  `generativelanguage` API を `google_search` グラウンディング付きで直接呼びます。
+- キーは GitHub Secret `GEMINI_API_KEY` → ビルド時に `VITE_GEMINI_API_KEY` として注入。
+- キー未登録でもアプリは壊れず、「🔍 かわりにWebで検索」ボタンにフォールバックします。
+
+（補足：`functions/` 配下にサーバー版の実装も残してあります。将来キーを完全に
+サーバー側へ隠したくなったら、そちらをデプロイする選択肢もあります。今は不要です。）
