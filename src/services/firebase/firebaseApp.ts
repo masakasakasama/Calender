@@ -10,6 +10,7 @@ import {
   type Auth,
 } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
+import { getFunctions, type Functions } from 'firebase/functions';
 
 // =====================================================================
 // Firebase 初期化。env に設定値が揃っているときだけ有効化する。
@@ -33,6 +34,7 @@ export function isFirebaseConfigured(): boolean {
 let _app: FirebaseApp | null = null;
 let _auth: Auth | null = null;
 let _db: Firestore | null = null;
+let _functions: Functions | null = null;
 
 export function firebaseApp(): FirebaseApp {
   if (!_app) _app = initializeApp(cfg as Record<string, string>);
@@ -57,4 +59,10 @@ export function firebaseAuth(): Auth {
 export function firebaseDb(): Firestore {
   if (!_db) _db = getFirestore(firebaseApp());
   return _db;
+}
+
+// Cloud Functions（AIプラン提案など）。デプロイ先のリージョンに合わせる。
+export function firebaseFunctions(): Functions {
+  if (!_functions) _functions = getFunctions(firebaseApp(), 'asia-northeast1');
+  return _functions;
 }

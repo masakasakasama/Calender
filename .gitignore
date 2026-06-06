@@ -11,3 +11,6 @@ dist-ssr
 *.log
 dev-dist
 *.tsbuildinfo
+functions/node_modules
+functions/lib
+.firebase

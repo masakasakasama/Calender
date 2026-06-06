@@ -6,6 +6,7 @@ import { EventModal, type EventFormValue } from '@/components/calendar/EventModa
 import { suggestPlans, planToInitial, isWeekend, TIER_LABEL } from '@/utils/datePlans';
 import { addDays, fmtYmd, WEEKDAY_LABELS } from '@/utils/date';
 import { openInMaps, openEventSearch } from '@/utils/maps';
+import { fetchAiPlans, type AiPlan } from '@/services/ai/AiPlanService';
 
 // プランタブ：
 //  1) やりたいことメモ（日付なしで保存・2人で共有）
@@ -22,6 +23,38 @@ export function PlanScreen({ user }: { user: User }) {
   const [desc, setDesc] = useState('');
   const [saving, setSaving] = useState(false);
   const [searchArea, setSearchArea] = useState('');
+
+  // AIおすすめ
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiPlans, setAiPlans] = useState<AiPlan[]>([]);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [savedAi, setSavedAi] = useState<Record<number, boolean>>({});
+
+  const runAi = async () => {
+    setAiLoading(true);
+    setAiError(null);
+    setAiPlans([]);
+    setSavedAi({});
+    try {
+      const res = await fetchAiPlans({ area: searchArea });
+      if (res.ok) {
+        setAiPlans(res.plans);
+      } else {
+        setAiError(res.error ?? 'うまく取得できませんでした。');
+      }
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const saveAiPlan = async (p: AiPlan, idx: number) => {
+    await addIdea({
+      title: `${p.emoji ? `${p.emoji} ` : ''}${p.title}`.trim(),
+      location: p.location,
+      description: p.description,
+    });
+    setSavedAi((s) => ({ ...s, [idx]: true }));
+  };
 
   const saveIdea = async () => {
     if (!title.trim() && !location.trim() && !desc.trim()) return;
@@ -65,16 +98,74 @@ export function PlanScreen({ user }: { user: User }) {
 
   return (
     <div>
-      {/* --- その土地のイベントをライブ検索 --- */}
-      <div className="section-title">その土地のイベントを探す</div>
+      {/* --- AIでその土地のおすすめを探す --- */}
+      <div className="section-title">✨ AIでおすすめを探す</div>
       <div className="card" style={{ marginBottom: 16 }}>
         <p className="muted" style={{ marginBottom: 10 }}>
-          行きたい場所を入れて検索すると、その地域の“今”のイベント・お祭り（例：スペインのトマト祭り）が出ます。良さそうなら下のメモに保存。
+          行きたい場所を入れると、AIがWeb検索でその地域の“今”のイベント・お祭り（例：スペインのトマト祭り）まで調べてデートプランを3つ提案します。
         </p>
         <div className="loc-row">
-          <input value={searchArea} onChange={(e) => setSearchArea(e.target.value)} placeholder="例: スペイン / 京都 / お台場" />
-          <button type="button" className="btn sm" onClick={() => openEventSearch(searchArea)}>🔍 検索</button>
+          <input
+            value={searchArea}
+            onChange={(e) => setSearchArea(e.target.value)}
+            placeholder="例: スペイン / 京都 / お台場"
+          />
+          <button type="button" className="btn sm" onClick={runAi} disabled={aiLoading}>
+            {aiLoading ? '考え中…' : '✨ AI提案'}
+          </button>
         </div>
+
+        {aiLoading && (
+          <p className="muted" style={{ marginTop: 10 }}>
+            AIがWebを調べておすすめを考えています…（10〜20秒ほどかかることがあります）
+          </p>
+        )}
+
+        {aiError && (
+          <div style={{ marginTop: 10 }}>
+            <p className="muted" style={{ color: '#c46', marginBottom: 8 }}>{aiError}</p>
+            <button type="button" className="btn sm secondary" onClick={() => openEventSearch(searchArea)}>
+              🔍 かわりにWebで検索する
+            </button>
+          </div>
+        )}
+
+        {aiPlans.length > 0 && (
+          <div style={{ marginTop: 12 }}>
+            {aiPlans.map((p, idx) => (
+              <div
+                className="event-card"
+                key={idx}
+                style={{ ['--evt-color' as string]: '#f3a5c0', marginBottom: 10 }}
+              >
+                <div style={{ flex: 1 }}>
+                  <div className="etitle">
+                    {p.emoji ? `${p.emoji} ` : ''}
+                    {p.title}
+                    <span className="muted" style={{ fontWeight: 400, marginLeft: 6 }}>
+                      （{TIER_LABEL[p.tier]}）
+                    </span>
+                  </div>
+                  {p.location && (
+                    <button type="button" className="eloc eloc-link" onClick={() => openInMaps(p.location)}>
+                      📍 {p.location}
+                    </button>
+                  )}
+                  {p.description && (
+                    <div className="eloc" style={{ whiteSpace: 'pre-wrap', marginTop: 4 }}>{p.description}</div>
+                  )}
+                </div>
+                <button
+                  className="btn sm"
+                  disabled={savedAi[idx]}
+                  onClick={() => saveAiPlan(p, idx)}
+                >
+                  {savedAi[idx] ? '保存済み' : '＋ メモに保存'}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* --- やりたいことメモ（日付なし） --- */}
