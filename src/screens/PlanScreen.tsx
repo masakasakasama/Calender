@@ -9,6 +9,19 @@ import { openInMaps, openEventSearch } from '@/utils/maps';
 import { fetchAiPlans, type AiPlan } from '@/services/ai/AiPlanService';
 import { fetchEventImage } from '@/utils/eventImage';
 
+// AIおすすめのキャッシュ（タブ切替のたびに呼び直して無料枠を消費しないため、
+// アプリ起動中はメモリに保持する）。手動「更新」または日付/エリア変更でのみ再取得。
+const aiCache: {
+  key: string;
+  plans: AiPlan[];
+  images: Record<number, string | null>;
+  grounded: boolean;
+} | null = (globalThis as { __aiPlanCache?: typeof aiCache }).__aiPlanCache ?? null;
+
+function saveCache(c: NonNullable<typeof aiCache>) {
+  (globalThis as { __aiPlanCache?: typeof aiCache }).__aiPlanCache = c;
+}
+
 // プランタブ：
 //  1) やりたいことメモ（日付なしで保存・2人で共有）
 //  2) 空いてる週末のおすすめ提案
@@ -25,11 +38,12 @@ export function PlanScreen({ user }: { user: User }) {
   const [saving, setSaving] = useState(false);
   const [searchArea, setSearchArea] = useState('');
 
-  // AIおすすめ（今週のイベント）。タブを開くと自動で取得する。
+  // AIおすすめ（今週のイベント）。初回のみ自動取得し、結果はキャッシュ。
   const [aiLoading, setAiLoading] = useState(false);
-  const [aiPlans, setAiPlans] = useState<AiPlan[]>([]);
+  const [aiPlans, setAiPlans] = useState<AiPlan[]>(aiCache?.plans ?? []);
   const [aiError, setAiError] = useState<string | null>(null);
-  const [aiImages, setAiImages] = useState<Record<number, string | null>>({});
+  const [aiImages, setAiImages] = useState<Record<number, string | null>>(aiCache?.images ?? {});
+  const [aiGrounded, setAiGrounded] = useState<boolean>(aiCache?.grounded ?? true);
   const [savedAi, setSavedAi] = useState<Record<number, boolean>>({});
 
   const runAi = async () => {
@@ -39,16 +53,21 @@ export function PlanScreen({ user }: { user: User }) {
     setAiImages({});
     setSavedAi({});
     try {
-      // エリア未入力でもOK（サーバー側で「東京周辺・今週」を既定にする）。
-      const res = await fetchAiPlans({ area: searchArea, date: fmtYmd(new Date()) });
+      // エリア未入力でもOK（既定で「東京周辺・今週」）。
+      const today = fmtYmd(new Date());
+      const res = await fetchAiPlans({ area: searchArea, date: today });
       if (res.ok) {
         setAiPlans(res.plans);
+        setAiGrounded(res.grounded ?? true);
+        const images: Record<number, string | null> = {};
         // 各プランの画像を並行取得（取れなければグラデーション表示）。
         res.plans.forEach((p, i) => {
-          void fetchEventImage(p.imageQuery || p.location || p.title).then((url) =>
-            setAiImages((m) => ({ ...m, [i]: url })),
-          );
+          void fetchEventImage(p.imageQuery || p.location || p.title).then((url) => {
+            images[i] = url;
+            setAiImages((m) => ({ ...m, [i]: url }));
+          });
         });
+        saveCache({ key: `${searchArea}|${today}`, plans: res.plans, images, grounded: res.grounded ?? true });
       } else {
         setAiError(res.error ?? 'うまく取得できませんでした。');
       }
@@ -57,9 +76,9 @@ export function PlanScreen({ user }: { user: User }) {
     }
   };
 
-  // 初回マウント時に自動取得（ワード入力なしで今週のおすすめを表示）。
+  // 初回マウント時のみ、キャッシュが無ければ自動取得。
   useEffect(() => {
-    void runAi();
+    if (!aiCache && aiPlans.length === 0) void runAi();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -145,6 +164,12 @@ export function PlanScreen({ user }: { user: User }) {
               🔍 かわりにWebで検索する
             </button>
           </div>
+        )}
+
+        {aiPlans.length > 0 && !aiGrounded && (
+          <p className="muted" style={{ marginTop: 8, fontSize: 11 }}>
+            ※ いまWeb検索が制限中のため、AIの知識ベースのおすすめです（最新の開催情報は各自で確認してね）。
+          </p>
         )}
 
         {aiPlans.length > 0 && (

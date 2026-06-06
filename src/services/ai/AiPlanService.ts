@@ -32,6 +32,7 @@ export interface AiPlan {
 export interface AiPlanResult {
   ok: boolean;
   plans: AiPlan[];
+  grounded?: boolean; // Web検索（グラウンディング）を使えたか
   error?: string; // ユーザー向けメッセージ
 }
 
@@ -104,52 +105,95 @@ function sanitizePlans(parsed: unknown): AiPlan[] {
   });
 }
 
-export async function fetchAiPlans(req: AiPlanRequest): Promise<AiPlanResult> {
-  if (!isAiConfigured()) {
-    return { ok: false, plans: [], error: 'AI機能はまだ準備中です（キー未設定）。' };
-  }
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+interface CallResult {
+  status: number; // 0 = ネットワーク失敗
+  text: string;
+}
+
+// Gemini を1回呼ぶ。useSearch=true で Google検索グラウンディングを付ける。
+async function callGemini(prompt: string, useSearch: boolean): Promise<CallResult> {
   const url =
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent` +
     `?key=${encodeURIComponent(GEMINI_API_KEY)}`;
+  const body: Record<string, unknown> = {
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    generationConfig: { temperature: 0.9 },
+  };
+  if (useSearch) body.tools = [{ google_search: {} }];
 
   let res: Response;
   try {
     res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: buildPrompt(req) }] }],
-        tools: [{ google_search: {} }],
-        generationConfig: { temperature: 0.9 },
-      }),
+      body: JSON.stringify(body),
     });
   } catch {
-    return { ok: false, plans: [], error: 'AIへの接続に失敗しました。電波の良い場所で再度お試しください。' };
+    return { status: 0, text: '' };
   }
-
-  if (!res.ok) {
-    return {
-      ok: false,
-      plans: [],
-      error: `AIの呼び出しに失敗しました（${res.status}）。少し時間をおいて試してください。`,
-    };
-  }
-
+  if (!res.ok) return { status: res.status, text: '' };
   const json = (await res.json().catch(() => null)) as {
     candidates?: { content?: { parts?: { text?: string }[] } }[];
   } | null;
   const text = json?.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? '';
+  return { status: 200, text };
+}
 
-  let plans: AiPlan[] = [];
+function parse(text: string): AiPlan[] {
   try {
-    plans = sanitizePlans(extractJson(text));
+    return sanitizePlans(extractJson(text));
   } catch {
-    return { ok: false, plans: [], error: 'AIの返答を解釈できませんでした。もう一度お試しください。' };
+    return [];
+  }
+}
+
+export async function fetchAiPlans(req: AiPlanRequest): Promise<AiPlanResult> {
+  if (!isAiConfigured()) {
+    return { ok: false, plans: [], error: 'AI機能はまだ準備中です（キー未設定）。' };
+  }
+  const prompt = buildPrompt(req);
+
+  // 1) Google検索つきを優先。429（レート/上限）は短い待機でリトライ。
+  let lastStatus = 0;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const r = await callGemini(prompt, true);
+    lastStatus = r.status;
+    if (r.status === 200) {
+      const plans = parse(r.text);
+      if (plans.length > 0) return { ok: true, plans, grounded: true };
+      break; // 200だが解釈不可 → 検索なしフォールバックへ
+    }
+    if (r.status === 429) {
+      await sleep(1500 * (attempt + 1)); // 1.5s, 3s
+      continue;
+    }
+    break; // その他のエラーはリトライしない
   }
 
-  if (plans.length === 0) {
-    return { ok: false, plans: [], error: 'おすすめが見つかりませんでした。もう一度お試しください。' };
+  // 2) フォールバック：Google検索なしでAI提案（無料枠で通りやすい）。
+  const r2 = await callGemini(prompt, false);
+  if (r2.status === 200) {
+    const plans = parse(r2.text);
+    if (plans.length > 0) return { ok: true, plans, grounded: false };
   }
-  return { ok: true, plans };
+
+  // 3) どちらもダメ。状況に応じたメッセージ。
+  if (lastStatus === 429 || r2.status === 429) {
+    return {
+      ok: false,
+      plans: [],
+      error:
+        'AIの無料枠の上限に達しました（429）。少し時間をおくか、課金(Blaze)を有効にしたプロジェクトのキーに変えると安定します。',
+    };
+  }
+  if (lastStatus === 0 && r2.status === 0) {
+    return { ok: false, plans: [], error: 'AIへの接続に失敗しました。電波の良い場所で再度お試しください。' };
+  }
+  return {
+    ok: false,
+    plans: [],
+    error: `AIの呼び出しに失敗しました（${lastStatus || r2.status}）。少し時間をおいて試してください。`,
+  };
 }
