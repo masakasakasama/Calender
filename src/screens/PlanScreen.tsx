@@ -7,6 +7,7 @@ import { suggestPlans, planToInitial, isWeekend, TIER_LABEL } from '@/utils/date
 import { addDays, fmtYmd, WEEKDAY_LABELS } from '@/utils/date';
 import { openInMaps, openEventSearch } from '@/utils/maps';
 import { fetchAiPlans, type AiPlan } from '@/services/ai/AiPlanService';
+import { fetchWeeklyEvents } from '@/utils/weeklyEvents';
 import { fetchEventImage } from '@/utils/eventImage';
 
 // AIおすすめのキャッシュ（タブ切替のたびに呼び直して無料枠を消費しないため、
@@ -46,6 +47,19 @@ export function PlanScreen({ user }: { user: User }) {
   const [aiGrounded, setAiGrounded] = useState<boolean>(aiCache?.grounded ?? true);
   const [savedAi, setSavedAi] = useState<Record<number, boolean>>({});
 
+  const applyResult = (plans: AiPlan[], grounded: boolean, key: string) => {
+    setAiPlans(plans);
+    setAiGrounded(grounded);
+    const images: Record<number, string | null> = {};
+    plans.forEach((p, i) => {
+      void fetchEventImage(p.imageQuery || p.location || p.title).then((url) => {
+        images[i] = url;
+        setAiImages((m) => ({ ...m, [i]: url }));
+      });
+    });
+    saveCache({ key, plans, images, grounded });
+  };
+
   const runAi = async () => {
     setAiLoading(true);
     setAiError(null);
@@ -53,21 +67,23 @@ export function PlanScreen({ user }: { user: User }) {
     setAiImages({});
     setSavedAi({});
     try {
-      // エリア未入力でもOK（既定で「東京周辺・今週」）。
       const today = fmtYmd(new Date());
-      const res = await fetchAiPlans({ area: searchArea, date: today });
+      const area = searchArea.trim();
+
+      // エリア未指定（既定の今週おすすめ）は、定期生成済みの weekly-events.json を優先。
+      // 鍵不要・無料・常に表示できる。エリアを指定したときだけライブAIを使う。
+      if (!area) {
+        const weekly = await fetchWeeklyEvents();
+        if (weekly && weekly.events.length > 0) {
+          applyResult(weekly.events, true, `weekly|${weekly.generatedAt}`);
+          return;
+        }
+      }
+
+      // フォールバック / エリア指定時：ライブAI（無料枠の範囲で）。
+      const res = await fetchAiPlans({ area, date: today });
       if (res.ok) {
-        setAiPlans(res.plans);
-        setAiGrounded(res.grounded ?? true);
-        const images: Record<number, string | null> = {};
-        // 各プランの画像を並行取得（取れなければグラデーション表示）。
-        res.plans.forEach((p, i) => {
-          void fetchEventImage(p.imageQuery || p.location || p.title).then((url) => {
-            images[i] = url;
-            setAiImages((m) => ({ ...m, [i]: url }));
-          });
-        });
-        saveCache({ key: `${searchArea}|${today}`, plans: res.plans, images, grounded: res.grounded ?? true });
+        applyResult(res.plans, res.grounded ?? true, `${area}|${today}`);
       } else {
         setAiError(res.error ?? 'うまく取得できませんでした。');
       }
@@ -148,7 +164,9 @@ export function PlanScreen({ user }: { user: User }) {
           </button>
         </div>
         <p className="muted" style={{ fontSize: 12 }}>
-          AIがWebを調べて、{searchArea.trim() || '東京周辺'}の今週のイベント・お祭りを自動で提案します。
+          {searchArea.trim()
+            ? `「${searchArea.trim()}」をAIがWebで調べて提案します（🔄更新を押してね）。`
+            : '毎週自動更新。東京周辺の今週のイベント・お祭りを表示します。エリアを入れて🔄更新すると、その地域をAIが調べます。'}
         </p>
 
         {aiLoading && (

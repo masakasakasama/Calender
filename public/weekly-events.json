@@ -1,0 +1,61 @@
+{
+  "generatedAt": "2026-06-06",
+  "area": "東京周辺",
+  "events": [
+    {
+      "tier": "relax",
+      "emoji": "💠",
+      "title": "文京あじさいまつり",
+      "description": "白山神社〜白山公園に約3,000株のあじさいが咲き誇る、梅雨デートにぴったりの花めぐり。雨の日も風情あり。",
+      "location": "白山神社（文京区）",
+      "dateText": "6月中旬ごろ開催",
+      "imageQuery": "白山神社 あじさい 文京",
+      "startHour": 11,
+      "durationHours": 3
+    },
+    {
+      "tier": "relax",
+      "emoji": "🌟",
+      "title": "ほたるびより（ほたる観賞）",
+      "description": "よみうりランドのHANA・BIYORIで楽しむ蛍の光。6月中旬まではゲンジボタル、以降はヘイケボタルの幻想的な夜。",
+      "location": "HANA・BIYORI（よみうりランド）",
+      "dateText": "6月中旬ごろまで",
+      "imageQuery": "蛍 ホタル 鑑賞",
+      "startHour": 18,
+      "durationHours": 2
+    },
+    {
+      "tier": "mild",
+      "emoji": "🌍",
+      "title": "世界グルメフェス2026",
+      "description": "隅田公園そよ風広場に世界各国の本格グルメが集結。音楽・ダンスなどのステージも楽しめるフードフェス。",
+      "location": "隅田公園そよ風広場",
+      "dateText": "6/6(土)・6/7(日)",
+      "imageQuery": "food festival outdoor",
+      "startHour": 12,
+      "durationHours": 3
+    },
+    {
+      "tier": "mild",
+      "emoji": "⛩️",
+      "title": "山王祭（日枝神社）",
+      "description": "江戸三大祭のひとつ。総勢550人が都心を練り歩く「神幸祭」は圧巻。神楽やお囃子、稚児行列も。",
+      "location": "日枝神社（赤坂）",
+      "dateText": "6月中旬",
+      "imageQuery": "山王祭 日枝神社",
+      "startHour": 10,
+      "durationHours": 4
+    },
+    {
+      "tier": "active",
+      "emoji": "🌭",
+      "title": "肉祭presents ホットドッグGP 2026",
+      "description": "セントラル広場でホットドッグ食べ比べ。がっつり食べ歩きたいアクティブ派デートに。",
+      "location": "東京都江東区 セントラル広場",
+      "dateText": "6/12(金)〜6/14(日)",
+      "imageQuery": "hot dog",
+      "startHour": 12,
+      "durationHours": 3
+    }
+  ]
+}

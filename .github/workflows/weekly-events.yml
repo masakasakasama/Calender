@@ -1,0 +1,42 @@
+name: Refresh weekly events
+
+# 「今週のおすすめイベント」を週1で自動生成して public/weekly-events.json を更新。
+# main への push が走るので、既存の Deploy ワークフローでそのまま本番反映される。
+on:
+  schedule:
+    - cron: '0 0 * * 1' # 毎週月曜 00:00 UTC（＝月曜 9:00 JST）
+  workflow_dispatch: # 手動実行も可
+
+permissions:
+  contents: write
+
+concurrency:
+  group: weekly-events
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Generate weekly-events.json
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_CALENDER }}
+        run: node scripts/generate-weekly-events.mjs
+
+      - name: Commit if changed
+        run: |
+          if [[ -n "$(git status --porcelain public/weekly-events.json)" ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add public/weekly-events.json
+            git commit -m "Refresh weekly events (auto)"
+            git push
+          else
+            echo "No changes."
+          fi
