@@ -2,11 +2,17 @@ name: Deploy to GitHub Pages
 
 # デプロイは main からのみ（github-pages 環境は main 以外を拒否するため）。
 # 手動実行(Run workflow)も可能。
+# さらに「週次イベント更新」ワークフロー完了後にも走らせる。
+# （GITHUB_TOKEN による push は他ワークフローを起動しない仕様のため、
+#   cron がコミットしても push だけでは deploy が走らない。それを workflow_run で補う）
 on:
   push:
     branches:
       - main
   workflow_dispatch:
+  workflow_run:
+    workflows: ['Refresh weekly events']
+    types: [completed]
 
 # GITHUB_TOKEN に Pages デプロイ権限を付与。
 permissions:
@@ -23,7 +29,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      # workflow_run 起動時も「main の最新（cronがコミットしたJSON込み）」を取得する。
       - uses: actions/checkout@v4
+        with:
+          ref: main
 
       - uses: actions/setup-node@v4
         with:
