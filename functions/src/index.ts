@@ -19,8 +19,8 @@ const ALLOWED_EMAILS = ['masakasakasama.man@gmail.com', 'rere.geier@gmail.com'];
 const GEMINI_MODEL = 'gemini-2.0-flash';
 
 interface PlanRequest {
-  area?: string; // 行きたいエリア（例: スペイン / 京都 / お台場）
-  date?: string; // YYYY-MM-DD（任意）
+  area?: string; // 行きたいエリア（任意。未指定なら東京周辺）
+  date?: string; // YYYY-MM-DD（任意。基準日。未指定なら今日）
   mood?: string; // のんびり / アクティブ など（任意）
 }
 
@@ -30,30 +30,42 @@ interface PlanItem {
   title: string;
   description: string;
   location: string;
+  dateText: string; // 開催時期（例: "6/7(土)〜6/9(月)" / "今週末" / "通年"）
+  imageQuery: string; // 画像検索に使うキーワード（イベント名・スポット名など）
   startHour: number; // 0-23
   durationHours: number; // 1-12
 }
 
+function fmtDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function buildPrompt(req: PlanRequest): string {
   const area = (req.area || '東京周辺').trim();
-  const dateLine = req.date ? `日付: ${req.date}\n` : '';
+  const base = req.date ? new Date(req.date) : new Date();
+  const start = fmtDate(base);
+  const endD = new Date(base.getTime() + 10 * 24 * 60 * 60 * 1000);
+  const end = fmtDate(endD);
   const moodLine = req.mood ? `気分・希望: ${req.mood}\n` : '';
   return [
-    'あなたはカップルのデートプランを考えるプロのコンシェルジュです。',
-    'Google検索を使って、その土地で「今・近い時期」に実際に開催されるイベントやお祭り、',
-    '話題のスポットを必ず調べてから、カップル向けのデートプランを日本語で3つ提案してください。',
+    'あなたはカップルのデートを提案するプロのコンシェルジュです。',
+    `Google検索を必ず使って、「${area}」で ${start} 〜 ${end}（これからの約1〜2週間）に`,
+    '実際に開催されるイベント・お祭り・期間限定の催し・話題のスポットを調べてください。',
+    'その中から、カップルで楽しめるおすすめを日本語で3つ提案してください。',
     '',
-    `行きたいエリア: ${area}`,
-    dateLine + moodLine,
-    '3つのプランはそれぞれ次の雰囲気にしてください:',
-    '1) relax = のんびり・ゆったり癒し系',
-    '2) mild  = 定番・ほどよくアクティブ',
-    '3) active = しっかり遊ぶアクティブ系',
+    `エリア: ${area}`,
+    `基準日: ${start}`,
+    moodLine,
+    '3つはできれば次の雰囲気でバラけさせてください:',
+    '1) relax = のんびり・癒し系  2) mild = 定番  3) active = しっかり遊ぶ',
     '',
-    'できる限り、検索で見つけた実在のイベント名・スポット名・地名を location や description に入れてください。',
+    '重要:',
+    '- できるだけ「その時期・その土地にしかない実在のイベント名」を入れること（例: スペインのトマト祭り La Tomatina）。',
+    '- dateText には開催時期を必ず入れる（例: "6/7(土)〜6/9(月)" や "今週末" など）。',
+    '- imageQuery には、そのイベント/スポットの写真が出てきやすい具体的な固有名詞（英語名があれば英語）を入れる。',
     '',
     '出力は必ず次のJSONのみ（前後に文章やコードフェンスを付けない）:',
-    '{"plans":[{"tier":"relax","emoji":"☕","title":"…","description":"…","location":"…","startHour":11,"durationHours":4}, …3件 …]}',
+    '{"plans":[{"tier":"relax","emoji":"☕","title":"…","description":"…","location":"…","dateText":"…","imageQuery":"…","startHour":11,"durationHours":4}, …3件 …]}',
   ].join('\n');
 }
 
@@ -76,12 +88,15 @@ function sanitizePlans(parsed: unknown): PlanItem[] {
     const tier = tiers.includes(o.tier as PlanItem['tier']) ? (o.tier as PlanItem['tier']) : tiers[i] ?? 'mild';
     const startHour = Number(o.startHour);
     const durationHours = Number(o.durationHours);
+    const title = String(o.title ?? 'おすすめ').slice(0, 60);
     return {
       tier,
       emoji: typeof o.emoji === 'string' && o.emoji ? o.emoji.slice(0, 4) : '✨',
-      title: String(o.title ?? 'おすすめプラン').slice(0, 60),
+      title,
       description: String(o.description ?? '').slice(0, 400),
       location: String(o.location ?? '').slice(0, 120),
+      dateText: String(o.dateText ?? '').slice(0, 60),
+      imageQuery: String(o.imageQuery ?? o.location ?? title).slice(0, 120),
       startHour: Number.isFinite(startHour) ? Math.min(23, Math.max(0, Math.round(startHour))) : 11,
       durationHours: Number.isFinite(durationHours) ? Math.min(12, Math.max(1, Math.round(durationHours))) : 4,
     };

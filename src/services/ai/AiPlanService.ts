@@ -20,6 +20,8 @@ export interface AiPlan {
   title: string;
   description: string;
   location: string;
+  dateText: string; // 開催時期（例: "今週末" / "6/7(土)〜"）
+  imageQuery: string; // 画像検索キーワード
   startHour: number;
   durationHours: number;
 }

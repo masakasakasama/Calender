@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { User } from '@/types';
 import { useSharedEvents } from '@/hooks/useSharedEvents';
 import { usePlanIdeas } from '@/hooks/usePlanIdeas';
@@ -7,6 +7,7 @@ import { suggestPlans, planToInitial, isWeekend, TIER_LABEL } from '@/utils/date
 import { addDays, fmtYmd, WEEKDAY_LABELS } from '@/utils/date';
 import { openInMaps, openEventSearch } from '@/utils/maps';
 import { fetchAiPlans, type AiPlan } from '@/services/ai/AiPlanService';
+import { fetchEventImage } from '@/utils/eventImage';
 
 // プランタブ：
 //  1) やりたいことメモ（日付なしで保存・2人で共有）
@@ -24,21 +25,30 @@ export function PlanScreen({ user }: { user: User }) {
   const [saving, setSaving] = useState(false);
   const [searchArea, setSearchArea] = useState('');
 
-  // AIおすすめ
+  // AIおすすめ（今週のイベント）。タブを開くと自動で取得する。
   const [aiLoading, setAiLoading] = useState(false);
   const [aiPlans, setAiPlans] = useState<AiPlan[]>([]);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [aiImages, setAiImages] = useState<Record<number, string | null>>({});
   const [savedAi, setSavedAi] = useState<Record<number, boolean>>({});
 
   const runAi = async () => {
     setAiLoading(true);
     setAiError(null);
     setAiPlans([]);
+    setAiImages({});
     setSavedAi({});
     try {
-      const res = await fetchAiPlans({ area: searchArea });
+      // エリア未入力でもOK（サーバー側で「東京周辺・今週」を既定にする）。
+      const res = await fetchAiPlans({ area: searchArea, date: fmtYmd(new Date()) });
       if (res.ok) {
         setAiPlans(res.plans);
+        // 各プランの画像を並行取得（取れなければグラデーション表示）。
+        res.plans.forEach((p, i) => {
+          void fetchEventImage(p.imageQuery || p.location || p.title).then((url) =>
+            setAiImages((m) => ({ ...m, [i]: url })),
+          );
+        });
       } else {
         setAiError(res.error ?? 'うまく取得できませんでした。');
       }
@@ -47,11 +57,18 @@ export function PlanScreen({ user }: { user: User }) {
     }
   };
 
+  // 初回マウント時に自動取得（ワード入力なしで今週のおすすめを表示）。
+  useEffect(() => {
+    void runAi();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const saveAiPlan = async (p: AiPlan, idx: number) => {
+    const desc = [p.dateText && `🗓 ${p.dateText}`, p.description].filter(Boolean).join('\n');
     await addIdea({
       title: `${p.emoji ? `${p.emoji} ` : ''}${p.title}`.trim(),
       location: p.location,
-      description: p.description,
+      description: desc,
     });
     setSavedAi((s) => ({ ...s, [idx]: true }));
   };
@@ -98,30 +115,30 @@ export function PlanScreen({ user }: { user: User }) {
 
   return (
     <div>
-      {/* --- AIでその土地のおすすめを探す --- */}
-      <div className="section-title">✨ AIでおすすめを探す</div>
+      {/* --- 今週のおすすめイベント（AIが自動取得・画像付き） --- */}
+      <div className="section-title">✨ 今週のおすすめイベント</div>
       <div className="card" style={{ marginBottom: 16 }}>
-        <p className="muted" style={{ marginBottom: 10 }}>
-          行きたい場所を入れると、AIがWeb検索でその地域の“今”のイベント・お祭り（例：スペインのトマト祭り）まで調べてデートプランを3つ提案します。
-        </p>
-        <div className="loc-row">
+        <div className="loc-row" style={{ marginBottom: 6 }}>
           <input
             value={searchArea}
             onChange={(e) => setSearchArea(e.target.value)}
-            placeholder="例: スペイン / 京都 / お台場"
+            placeholder="エリア指定（任意）例: 京都 / スペイン"
           />
           <button type="button" className="btn sm" onClick={runAi} disabled={aiLoading}>
-            {aiLoading ? '考え中…' : '✨ AI提案'}
+            {aiLoading ? '取得中…' : '🔄 更新'}
           </button>
         </div>
+        <p className="muted" style={{ fontSize: 12 }}>
+          AIがWebを調べて、{searchArea.trim() || '東京周辺'}の今週のイベント・お祭りを自動で提案します。
+        </p>
 
         {aiLoading && (
           <p className="muted" style={{ marginTop: 10 }}>
-            AIがWebを調べておすすめを考えています…（10〜20秒ほどかかることがあります）
+            AIがWebを調べています…（10〜20秒ほどかかることがあります）
           </p>
         )}
 
-        {aiError && (
+        {aiError && !aiLoading && (
           <div style={{ marginTop: 10 }}>
             <p className="muted" style={{ color: '#c46', marginBottom: 8 }}>{aiError}</p>
             <button type="button" className="btn sm secondary" onClick={() => openEventSearch(searchArea)}>
@@ -133,12 +150,19 @@ export function PlanScreen({ user }: { user: User }) {
         {aiPlans.length > 0 && (
           <div style={{ marginTop: 12 }}>
             {aiPlans.map((p, idx) => (
-              <div
-                className="event-card"
-                key={idx}
-                style={{ ['--evt-color' as string]: '#f3a5c0', marginBottom: 10 }}
-              >
-                <div style={{ flex: 1 }}>
+              <div className="ai-event-card" key={idx}>
+                <div
+                  className="ai-event-img"
+                  style={
+                    aiImages[idx]
+                      ? { backgroundImage: `url("${aiImages[idx]}")` }
+                      : undefined
+                  }
+                >
+                  {!aiImages[idx] && <span className="ai-event-emoji">{p.emoji || '✨'}</span>}
+                  {p.dateText && <span className="ai-event-date">🗓 {p.dateText}</span>}
+                </div>
+                <div className="ai-event-body">
                   <div className="etitle">
                     {p.emoji ? `${p.emoji} ` : ''}
                     {p.title}
@@ -154,14 +178,15 @@ export function PlanScreen({ user }: { user: User }) {
                   {p.description && (
                     <div className="eloc" style={{ whiteSpace: 'pre-wrap', marginTop: 4 }}>{p.description}</div>
                   )}
+                  <button
+                    className="btn sm"
+                    style={{ marginTop: 8 }}
+                    disabled={savedAi[idx]}
+                    onClick={() => saveAiPlan(p, idx)}
+                  >
+                    {savedAi[idx] ? '保存済み' : '＋ メモに保存'}
+                  </button>
                 </div>
-                <button
-                  className="btn sm"
-                  disabled={savedAi[idx]}
-                  onClick={() => saveAiPlan(p, idx)}
-                >
-                  {savedAi[idx] ? '保存済み' : '＋ メモに保存'}
-                </button>
               </div>
             ))}
           </div>

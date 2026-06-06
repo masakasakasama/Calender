@@ -342,6 +342,25 @@ input, textarea, select { font-family: inherit; font-size: 16px; }
   display: flex; align-items: center; justify-content: center; font-size: 18px;
 }
 
+/* ---- AI 今週のおすすめイベント（画像付きカード） ---- */
+.ai-event-card {
+  background: var(--surface-2); border-radius: 16px; overflow: hidden;
+  border: 1px solid #fff; margin-bottom: 12px;
+}
+.ai-event-img {
+  position: relative; width: 100%; height: 140px;
+  background-size: cover; background-position: center;
+  background-image: linear-gradient(135deg, var(--primary), var(--lavender));
+  display: flex; align-items: center; justify-content: center;
+}
+.ai-event-emoji { font-size: 46px; filter: drop-shadow(0 2px 4px rgba(0,0,0,.25)); }
+.ai-event-date {
+  position: absolute; left: 8px; bottom: 8px;
+  background: rgba(0,0,0,.55); color: #fff; font-size: 11px; font-weight: 700;
+  padding: 3px 9px; border-radius: 999px; backdrop-filter: blur(2px);
+}
+.ai-event-body { padding: 12px 14px; }
+
 /* ---- 絵文字 / タイトル ---- */
 .title-row { display: flex; gap: 10px; align-items: center; }
 .title-row input { flex: 1; }
