@@ -6,7 +6,7 @@ import { EventModal, type EventFormValue } from '@/components/calendar/EventModa
 import { suggestPlans, planToInitial, isWeekend, TIER_LABEL } from '@/utils/datePlans';
 import { addDays, fmtYmd, WEEKDAY_LABELS } from '@/utils/date';
 import { openInMaps, openEventSearch, openWebSearch } from '@/utils/maps';
-import { fetchAiPlans, type AiPlan } from '@/services/ai/AiPlanService';
+import type { AiPlan } from '@/services/ai/AiPlanService';
 import { fetchWeeklyEvents } from '@/utils/weeklyEvents';
 import { fetchEventImage } from '@/utils/eventImage';
 
@@ -61,31 +61,24 @@ export function PlanScreen({ user }: { user: User }) {
   };
 
   const runAi = async () => {
+    // エリア指定時はAIを使わず、Webでそのまま検索（外部APIに依存しない）。
+    const area = searchArea.trim();
+    if (area) {
+      openEventSearch(area);
+      return;
+    }
+    // 既定：定期生成済みの weekly-events.json を読むだけ（鍵不要・無料）。
     setAiLoading(true);
     setAiError(null);
     setAiPlans([]);
     setAiImages({});
     setSavedAi({});
     try {
-      const today = fmtYmd(new Date());
-      const area = searchArea.trim();
-
-      // エリア未指定（既定の今週おすすめ）は、定期生成済みの weekly-events.json を優先。
-      // 鍵不要・無料・常に表示できる。エリアを指定したときだけライブAIを使う。
-      if (!area) {
-        const weekly = await fetchWeeklyEvents();
-        if (weekly && weekly.events.length > 0) {
-          applyResult(weekly.events, true, `weekly|${weekly.generatedAt}`);
-          return;
-        }
-      }
-
-      // フォールバック / エリア指定時：ライブAI（無料枠の範囲で）。
-      const res = await fetchAiPlans({ area, date: today });
-      if (res.ok) {
-        applyResult(res.plans, res.grounded ?? true, `${area}|${today}`);
+      const weekly = await fetchWeeklyEvents();
+      if (weekly && weekly.events.length > 0) {
+        applyResult(weekly.events, true, `weekly|${weekly.generatedAt}`);
       } else {
-        setAiError(res.error ?? 'うまく取得できませんでした。');
+        setAiError('今週のおすすめはまだ準備中です。下の「🔍 Webで検索」も使えます。');
       }
     } finally {
       setAiLoading(false);
