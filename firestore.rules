@@ -68,6 +68,14 @@ service cloud.firestore {
       allow read, write: if isCalendarUser();
     }
 
+    match /date_plan_feedback/{id} {
+      allow read: if isCalendarUser();
+      allow create, update: if isCalendarUser()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.preference in ['like', 'dislike'];
+      allow delete: if false;
+    }
+
     match /app_versions/{id} {
       allow read: if isCalendarUser();
       allow write: if false;

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { User, CalendarEvent } from '@/types';
 import { useSharedEvents } from '@/hooks/useSharedEvents';
 import { usePlanIdeas } from '@/hooks/usePlanIdeas';
+import { useDatePlanFeedback } from '@/hooks/useDatePlanFeedback';
 import { useWeekendResearch, researchItemToInitial } from '@/hooks/useWeekendResearch';
 import { EventModal, type EventFormValue } from '@/components/calendar/EventModal';
 import { suggestPlans, planToInitial, isWeekend, TIER_LABEL } from '@/utils/datePlans';
@@ -29,6 +30,7 @@ export function PlanScreen({ user }: { user: User }) {
   const { events, createEvent } = useSharedEvents(user.userId);
   const { ideas, addIdea, removeIdea } = usePlanIdeas(user.userId);
   const { data: research, loading: researchLoading } = useWeekendResearch();
+  const { feedbackByItemId, setPreference } = useDatePlanFeedback(user);
   const [adding, setAdding] = useState(false);
   const [addInitial, setAddInitial] = useState<Partial<EventFormValue> | undefined>(undefined);
 
@@ -171,7 +173,7 @@ export function PlanScreen({ user }: { user: User }) {
   return (
     <div>
       <div className="notice">
-        空いている週末に、ふたりのデートや予定の候補を提案します。気に入ったら「＋」で予定に追加できます。
+        空いている週末に、ふたりの予定候補を表示します。気に入った候補は予定に追加できます。
       </div>
 
       <div className="section-title">今週のおすすめイベント</div>
@@ -180,7 +182,7 @@ export function PlanScreen({ user }: { user: User }) {
           <input
             value={searchArea}
             onChange={(event) => setSearchArea(event.target.value)}
-            placeholder="エリア指定（任意）例: 東京 / スペイン"
+            placeholder="エリア指定（任意）例: 東京 / 横浜"
           />
           <button type="button" className="btn sm" onClick={runAi} disabled={aiLoading}>
             {aiLoading ? '取得中...' : '更新'}
@@ -315,6 +317,28 @@ export function PlanScreen({ user }: { user: User }) {
                       {item.summary}
                     </div>
                     <div className="ai-event-info-hint">タップで検索</div>
+                    <div className="preference-row" aria-label="好みを記録">
+                      <button
+                        type="button"
+                        className={`pref-btn${feedbackByItemId[item.id]?.preference === 'like' ? ' active like' : ''}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void setPreference(item, 'like');
+                        }}
+                      >
+                        好き
+                      </button>
+                      <button
+                        type="button"
+                        className={`pref-btn${feedbackByItemId[item.id]?.preference === 'dislike' ? ' active dislike' : ''}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void setPreference(item, 'dislike');
+                        }}
+                      >
+                        微妙
+                      </button>
+                    </div>
                     <button
                       className="btn sm"
                       style={{ marginTop: 8 }}
