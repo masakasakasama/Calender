@@ -44,7 +44,6 @@ export function PlanScreen({ user }: { user: User }) {
   const [aiImages, setAiImages] = useState<Record<number, string | null>>(aiCache?.images ?? {});
   const [aiGrounded, setAiGrounded] = useState<boolean>(aiCache?.grounded ?? true);
   const [savedAi, setSavedAi] = useState<Record<number, boolean>>({});
-  const [researchImages, setResearchImages] = useState<Record<string, string | null>>({});
 
   const applyResult = (plans: AiPlan[], grounded: boolean, key: string) => {
     setAiPlans(plans);
@@ -87,16 +86,6 @@ export function PlanScreen({ user }: { user: User }) {
     if (!aiCache && aiPlans.length === 0) void runAi();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    if (!research) return;
-    research.items.forEach((item) => {
-      if (item.id in researchImages) return;
-      void fetchEventImage(`${item.title} ${item.locationName} ${item.area}`).then((url) => {
-        setResearchImages((current) => ({ ...current, [item.id]: url }));
-      });
-    });
-  }, [research, researchImages]);
 
   const saveAiPlan = async (plan: AiPlan, index: number) => {
     const description = [plan.dateText && `日程: ${plan.dateText}`, plan.description].filter(Boolean).join('\n');
@@ -301,9 +290,9 @@ export function PlanScreen({ user }: { user: User }) {
                 >
                   <div
                     className="ai-event-img"
-                    style={researchImages[item.id] ? { backgroundImage: `url("${researchImages[item.id]}")` } : undefined}
+                    style={item.imageUrl ? { backgroundImage: `url("${item.imageUrl}")` } : undefined}
                   >
-                    {!researchImages[item.id] && <span className="ai-event-emoji">{item.emoji}</span>}
+                    {!item.imageUrl && <span className="ai-event-emoji">{item.emoji}</span>}
                     <span className="ai-event-date">
                       {item.dateLabel} / {item.area}
                     </span>

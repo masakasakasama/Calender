@@ -20,6 +20,7 @@ export interface WeekendResearchItem {
   coupleNote: string;
   sourceName: string;
   url: string;
+  imageUrl?: string | null;
 }
 
 export interface WeekendResearch {

@@ -23,11 +23,17 @@
       "price": "入場無料（屋台利用は有料）",
       "reservation": "不要。抽選などは先着/なくなり次第終了。",
       "rainFriendly": true,
-      "tags": ["祭り", "屋台", "駅近", "夜まで"],
+      "tags": [
+        "祭り",
+        "屋台",
+        "駅近",
+        "夜まで"
+      ],
       "summary": "東京駅前で縁日気分。屋台、ゲーム、大抽選会があり、短時間でも寄りやすい。",
       "coupleNote": "夕方から行って屋台を少し回り、そのまま八重洲地下街や丸の内でご飯に繋げやすい。",
       "sourceName": "東京ミッドタウン八重洲",
-      "url": "https://www.yaesu.tokyo-midtown.com/news-topics/detail/2903223"
+      "url": "https://www.yaesu.tokyo-midtown.com/news-topics/detail/2903223",
+      "imageUrl": "https://contents.file-server.net/store/346/post-item-image/653614302/2978d717-bc28-4983-ae5f-4f37c6149143.jpg"
     },
     {
       "id": "2026-06-14-furugi-fes",
@@ -43,11 +49,17 @@
       "price": "700円（小学生以下無料）",
       "reservation": "チケット/入場条件は公式確認",
       "rainFriendly": true,
-      "tags": ["屋内", "古着", "買い物", "低予算"],
+      "tags": [
+        "屋内",
+        "古着",
+        "買い物",
+        "低予算"
+      ],
       "summary": "国内最大級の古着イベント。屋内なので雨の日候補として強い。",
       "coupleNote": "お互いの服を選び合うデートに向く。お台場・豊洲方面の寄り道も作りやすい。",
       "sourceName": "古着フェス公式",
-      "url": "https://www.andbuyer.or.jp/furugifestival/"
+      "url": "https://www.andbuyer.or.jp/furugifestival/",
+      "imageUrl": "https://andbuyer.or.jp/furugifestival/img/furugifestival_2510_pc.jpg?2503141332"
     },
     {
       "id": "2026-06-13-ron-mueck",
@@ -63,11 +75,17 @@
       "price": "美術館チケット要確認",
       "reservation": "混雑時は事前チケット推奨",
       "rainFriendly": true,
-      "tags": ["屋内", "美術館", "夜まで", "雨の日"],
+      "tags": [
+        "屋内",
+        "美術館",
+        "夜まで",
+        "雨の日"
+      ],
       "summary": "週末は9:00-22:00の延長開館対象。大きな彫刻作品をじっくり見られる。",
       "coupleNote": "展示後に六本木ヒルズ周辺でカフェ・夜景に繋げると満足度が高い。",
       "sourceName": "森美術館",
-      "url": "https://www.mori.art.museum/jp/exhibitions/ronmueck/06/index.html"
+      "url": "https://www.mori.art.museum/jp/exhibitions/ronmueck/06/index.html",
+      "imageUrl": "https://www.mori.art.museum/files/exhibitions/2026/03/25/ogp_ronmueck_02.jpg"
     },
     {
       "id": "2026-06-13-kioi-rose-week",
@@ -83,11 +101,17 @@
       "price": "鑑賞無料（一部飲食・ワークショップ等は有料）",
       "reservation": "展示鑑賞は不要。限定企画は公式確認。",
       "rainFriendly": false,
-      "tags": ["花", "散歩", "写真", "カフェ"],
+      "tags": [
+        "花",
+        "散歩",
+        "写真",
+        "カフェ"
+      ],
       "summary": "ニコライ・バーグマンとのコラボによるローズのインスタレーション。6/14が最終日。",
       "coupleNote": "晴れなら写真を撮りながら散歩。雨なら施設内カフェやホテル系アフタヌーンティーに寄せる。",
       "sourceName": "東京ガーデンテラス紀尾井町",
-      "url": "https://www.tgt-kioicho.jp/feature/event/roseweek2026/"
+      "url": "https://www.tgt-kioicho.jp/feature/event/roseweek2026/",
+      "imageUrl": "https://www.tgt-kioicho.jp/feature/event/roseweek2026/images/ogp.jpg"
     },
     {
       "id": "2026-06-13-tokyo-pride-youth",
@@ -103,11 +127,17 @@
       "price": "無料（公式情報ベース）",
       "reservation": "プログラムにより要確認",
       "rainFriendly": true,
-      "tags": ["屋内", "カルチャー", "無料", "原宿"],
+      "tags": [
+        "屋内",
+        "カルチャー",
+        "無料",
+        "原宿"
+      ],
       "summary": "10〜20代が出会い、つながる場として開催されるTokyo Pride公式プログラム。",
       "coupleNote": "原宿散歩や表参道カフェと合わせやすい。カルチャー寄りの軽い週末プランに。",
       "sourceName": "Tokyo Pride 2026",
-      "url": "https://pride.tokyo/"
+      "url": "https://pride.tokyo/",
+      "imageUrl": "https://pride.tokyo/wordpress/wp-content/uploads/2026/02/ogp.png"
     },
     {
       "id": "2026-06-13-queer-art-exhibition",
@@ -123,11 +153,17 @@
       "price": "無料（公式情報ベース）",
       "reservation": "不要/詳細は公式確認",
       "rainFriendly": true,
-      "tags": ["屋内", "アート", "無料", "カルチャー"],
+      "tags": [
+        "屋内",
+        "アート",
+        "無料",
+        "カルチャー"
+      ],
       "summary": "LGBTQ+アーティストやクィア文化をテーマにしたTokyo Pride公式展示。",
       "coupleNote": "短時間で見やすい展示候補。新宿でご飯や映画と合わせると組みやすい。",
       "sourceName": "Tokyo Pride 2026",
-      "url": "https://pride.tokyo/queer-art/"
+      "url": "https://pride.tokyo/queer-art/",
+      "imageUrl": "https://pride.tokyo/wordpress/wp-content/uploads/2026/02/ogp.png"
     },
     {
       "id": "2026-06-13-baltic-island",
@@ -143,11 +179,17 @@
       "price": "要確認",
       "reservation": "不要/詳細は会場情報確認",
       "rainFriendly": true,
-      "tags": ["屋内", "イラスト", "表参道", "最終日"],
+      "tags": [
+        "屋内",
+        "イラスト",
+        "表参道",
+        "最終日"
+      ],
       "summary": "バルト三国のアニメーションとイラストレーションを紹介する展覧会。6/14が最終日。",
       "coupleNote": "表参道カフェ巡りと相性がいい。軽めに寄れるアート散歩。",
       "sourceName": "Tokyo Art Beat",
-      "url": "https://www.tokyoartbeat.com/events/-/Baltic-Island/7-A6-A4-D90/2026-06-01"
+      "url": "https://www.tokyoartbeat.com/events/-/Baltic-Island/7-A6-A4-D90/2026-06-01",
+      "imageUrl": "https://images.ctfassets.net/j05yk38inose/237NeJS9STMNoWBg0HysCY/82ef26ffe6b295783e6048c55d6d5c2a/baltic_island_press_visuals_4.jpg?w=1200"
     },
     {
       "id": "2026-06-13-monet-redon",
@@ -163,11 +205,17 @@
       "price": "美術館チケット要確認",
       "reservation": "事前チケット推奨",
       "rainFriendly": true,
-      "tags": ["屋内", "美術館", "丸の内", "開始直後"],
+      "tags": [
+        "屋内",
+        "美術館",
+        "丸の内",
+        "開始直後"
+      ],
       "summary": "モネとルドンを扱う小企画。6/13開始で、丸の内デートに合わせやすい。",
       "coupleNote": "美術館後に丸の内・日比谷でランチや買い物を組むと自然。",
       "sourceName": "Tokyo Art Beat / 三菱一号館美術館",
-      "url": "https://www.tokyoartbeat.com/events/-/Monet-and-Redon/C5-C855-D6/2026-06-13"
+      "url": "https://www.tokyoartbeat.com/events/-/Monet-and-Redon/C5-C855-D6/2026-06-13",
+      "imageUrl": "https://images.ctfassets.net/j05yk38inose/5qYZLOY8gY6IzRSg2dwHTS/834a33ef55bcbde64a29a1689d653c37/%C3%A3__%C3%A3__%C3%A3_%C2%AA%C3%A3__%C3%A3__%C3%A3__%C3%A3__%C3%A3__%C3%A3___2026-05-25_18.07.06.png?w=1200"
     }
   ]
 }
