@@ -19,6 +19,7 @@ export default function App() {
   const { user, loading, signOut } = useAuth();
   const [tab, setTab] = useState<Tab>('shared');
   const [openAdd, setOpenAdd] = useState(false);
+  const [searchPulse, setSearchPulse] = useState(0);
   const { unreadCount } = useNotifications();
   // レベッカのGoogle予定を自動同期（タブを開かなくても動く）。
   useGoogleSync(user);
@@ -87,6 +88,11 @@ export default function App() {
         <h1 className="font-hand">
           <CloudMascot size={30} /> calender
         </h1>
+        {activeTab === 'shared' && (
+          <button className="appbar-search" onClick={() => setSearchPulse((value) => value + 1)} aria-label="予定を検索">
+            🔍
+          </button>
+        )}
         <div className="appbar-right">
           <button className="bell-btn" onClick={() => setTab('notifications')} aria-label="通知">
             🔔
@@ -106,7 +112,7 @@ export default function App() {
           </div>
         )}
         {activeTab === 'shared' && (
-          <SharedScreen user={user} openAdd={openAdd} onAddHandled={() => setOpenAdd(false)} />
+          <SharedScreen user={user} openAdd={openAdd} searchPulse={searchPulse} onAddHandled={() => setOpenAdd(false)} />
         )}
         {activeTab === 'rebecca' && isRebecca && <RebeccaScreen user={user} />}
         {activeTab === 'plan' && <PlanScreen user={user} />}

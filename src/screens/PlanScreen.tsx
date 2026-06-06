@@ -44,6 +44,7 @@ export function PlanScreen({ user }: { user: User }) {
   const [aiImages, setAiImages] = useState<Record<number, string | null>>(aiCache?.images ?? {});
   const [aiGrounded, setAiGrounded] = useState<boolean>(aiCache?.grounded ?? true);
   const [savedAi, setSavedAi] = useState<Record<number, boolean>>({});
+  const [researchImages, setResearchImages] = useState<Record<string, string | null>>({});
 
   const applyResult = (plans: AiPlan[], grounded: boolean, key: string) => {
     setAiPlans(plans);
@@ -87,6 +88,16 @@ export function PlanScreen({ user }: { user: User }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (!research) return;
+    research.items.forEach((item) => {
+      if (item.id in researchImages) return;
+      void fetchEventImage(`${item.title} ${item.locationName} ${item.area}`).then((url) => {
+        setResearchImages((current) => ({ ...current, [item.id]: url }));
+      });
+    });
+  }, [research, researchImages]);
+
   const saveAiPlan = async (plan: AiPlan, index: number) => {
     const description = [plan.dateText && `日程: ${plan.dateText}`, plan.description].filter(Boolean).join('\n');
     await addIdea({
@@ -108,6 +119,7 @@ export function PlanScreen({ user }: { user: User }) {
         break;
       }
     }
+
     const start = new Date(day);
     start.setHours(11, 0, 0, 0);
     const end = new Date(start.getTime() + 3 * 60 * 60 * 1000);
@@ -278,22 +290,56 @@ export function PlanScreen({ user }: { user: User }) {
               {research.targetWeekend.label} / {research.area}
             </div>
             <div className="research-summary">{research.summary}</div>
-            {research.items.map((item) => (
-              <button key={item.id} className="research-card" onClick={() => pick(researchItemToInitial(item))}>
-                <span className="plan-emoji">{item.emoji}</span>
-                <span className="plan-body">
-                  <span className="plan-tier">
-                    {item.dateLabel} / {item.area}
-                  </span>
-                  <span className="plan-title">{item.title}</span>
-                  <span className="plan-desc">{item.summary}</span>
-                  <span className="research-sub">
-                    {item.price} ・ {item.rainFriendly ? '雨でも行きやすい' : '天気確認'}
-                  </span>
-                </span>
-                <span className="plan-add">＋</span>
-              </button>
-            ))}
+            <div style={{ marginTop: 12 }}>
+              {research.items.map((item) => (
+                <div
+                  className="ai-event-card tappable research-event-card"
+                  key={item.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openWebSearch(`${item.title} ${item.locationName}`)}
+                >
+                  <div
+                    className="ai-event-img"
+                    style={researchImages[item.id] ? { backgroundImage: `url("${researchImages[item.id]}")` } : undefined}
+                  >
+                    {!researchImages[item.id] && <span className="ai-event-emoji">{item.emoji}</span>}
+                    <span className="ai-event-date">
+                      {item.dateLabel} / {item.area}
+                    </span>
+                  </div>
+                  <div className="ai-event-body">
+                    <div className="etitle">
+                      {item.emoji} {item.title}
+                    </div>
+                    <button
+                      type="button"
+                      className="eloc eloc-link"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        openInMaps(item.locationName);
+                      }}
+                    >
+                      {item.locationName}
+                    </button>
+                    <div className="eloc" style={{ whiteSpace: 'pre-wrap', marginTop: 4 }}>
+                      {item.summary}
+                    </div>
+                    <div className="ai-event-info-hint">タップで検索</div>
+                    <button
+                      className="btn sm"
+                      style={{ marginTop: 8 }}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        pick(researchItemToInitial(item));
+                      }}
+                    >
+                      ＋ 予定に追加
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </>
         )}
       </section>

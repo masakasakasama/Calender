@@ -5,7 +5,14 @@ import { CalendarView } from '@/components/calendar/CalendarView';
 import { EventModal, type EventFormValue } from '@/components/calendar/EventModal';
 import { EVENT_CATEGORIES } from '@/utils/eventStyle';
 
-export function SharedScreen({ user, openAdd, onAddHandled }: { user: User; openAdd: boolean; onAddHandled: () => void }) {
+interface SharedScreenProps {
+  user: User;
+  openAdd: boolean;
+  searchPulse: number;
+  onAddHandled: () => void;
+}
+
+export function SharedScreen({ user, openAdd, searchPulse, onAddHandled }: SharedScreenProps) {
   const { events, createEvent, updateEvent, deleteEvent } = useSharedEvents(user.userId);
   const [selected, setSelected] = useState<CalendarEvent | null>(null);
   const [adding, setAdding] = useState(false);
@@ -20,6 +27,10 @@ export function SharedScreen({ user, openAdd, onAddHandled }: { user: User; open
     setAdding(true);
     onAddHandled();
   }, [adding, onAddHandled, openAdd]);
+
+  useEffect(() => {
+    if (searchPulse > 0) setSearchOpen(true);
+  }, [searchPulse]);
 
   const addOnDate = (date: Date, initial?: Partial<EventFormValue>) => {
     if (initial) {
@@ -51,7 +62,6 @@ export function SharedScreen({ user, openAdd, onAddHandled }: { user: User; open
   };
 
   const q = query.trim().toLowerCase();
-  const searching = q.length > 0 || category !== 'all';
   const visibleEvents = events.filter((event) => {
     const matchesText =
       !q || [event.title, event.location, event.description].some((text) => (text ?? '').toLowerCase().includes(q));
@@ -61,28 +71,22 @@ export function SharedScreen({ user, openAdd, onAddHandled }: { user: User; open
 
   return (
     <div>
-      <div className={`search-row${searchOpen ? ' open' : ''}`}>
-        {!searchOpen ? (
-          <button className={`icon-search${searching ? ' active' : ''}`} onClick={() => setSearchOpen(true)} aria-label="予定を検索">
-            🔍
+      {searchOpen && (
+        <div className="search-row open">
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="予定を検索" autoFocus />
+          <select value={category} onChange={(event) => setCategory(event.target.value)}>
+            <option value="all">すべて</option>
+            {EVENT_CATEGORIES.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.emoji} {item.label}
+              </option>
+            ))}
+          </select>
+          <button className="icon-search close" onClick={resetSearch} aria-label="検索を閉じる">
+            ×
           </button>
-        ) : (
-          <>
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="予定を検索" autoFocus />
-            <select value={category} onChange={(event) => setCategory(event.target.value)}>
-              <option value="all">すべて</option>
-              {EVENT_CATEGORIES.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.emoji} {item.label}
-                </option>
-              ))}
-            </select>
-            <button className="icon-search close" onClick={resetSearch} aria-label="検索を閉じる">
-              ×
-            </button>
-          </>
-        )}
-      </div>
+        </div>
+      )}
 
       <CalendarView events={visibleEvents} onSelectEvent={setSelected} onAddOnDate={addOnDate} />
 
