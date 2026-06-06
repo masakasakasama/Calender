@@ -19,3 +19,10 @@ export function openEventSearch(area: string): void {
   const q = `${a} イベント 祭り ${now.getFullYear()}年${now.getMonth() + 1}月`;
   window.open(`https://www.google.com/search?q=${encodeURIComponent(q)}`, '_blank', 'noopener,noreferrer');
 }
+
+// 任意のキーワードでWeb検索（一番詳しいサイトへ飛ぶ用）。
+export function openWebSearch(query: string): void {
+  const q = query.trim();
+  if (!q) return;
+  window.open(`https://www.google.com/search?q=${encodeURIComponent(q)}`, '_blank', 'noopener,noreferrer');
+}

@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import type { User } from '@/types';
+import type { User, CalendarEvent } from '@/types';
 import { useSharedEvents } from '@/hooks/useSharedEvents';
 import { usePlanIdeas } from '@/hooks/usePlanIdeas';
 import { EventModal, type EventFormValue } from '@/components/calendar/EventModal';
 import { suggestPlans, planToInitial, isWeekend, TIER_LABEL } from '@/utils/datePlans';
 import { addDays, fmtYmd, WEEKDAY_LABELS } from '@/utils/date';
-import { openInMaps, openEventSearch } from '@/utils/maps';
+import { openInMaps, openEventSearch, openWebSearch } from '@/utils/maps';
 import { fetchAiPlans, type AiPlan } from '@/services/ai/AiPlanService';
 import { fetchWeeklyEvents } from '@/utils/weeklyEvents';
 import { fetchEventImage } from '@/utils/eventImage';
@@ -108,6 +108,29 @@ export function PlanScreen({ user }: { user: User }) {
     setSavedAi((s) => ({ ...s, [idx]: true }));
   };
 
+  // 保存したプランをタップ → 日付を入れてカレンダー（共有）に登録できる。
+  const openIdeaInCalendar = (it: CalendarEvent) => {
+    const t = new Date();
+    t.setHours(0, 0, 0, 0);
+    let day = t;
+    for (let i = 0; i < 7; i++) {
+      const d = addDays(t, i);
+      if (isWeekend(d)) { day = d; break; }
+    }
+    const start = new Date(day);
+    start.setHours(11, 0, 0, 0);
+    const end = new Date(start.getTime() + 3 * 60 * 60 * 1000);
+    setAddInitial({
+      title: it.title,
+      emoji: it.emoji ?? undefined,
+      location: it.location,
+      description: it.description,
+      start: start.toISOString(),
+      end: end.toISOString(),
+    });
+    setAdding(true);
+  };
+
   const saveIdea = async () => {
     if (!title.trim() && !location.trim() && !desc.trim()) return;
     setSaving(true);
@@ -193,7 +216,13 @@ export function PlanScreen({ user }: { user: User }) {
         {aiPlans.length > 0 && (
           <div style={{ marginTop: 12 }}>
             {aiPlans.map((p, idx) => (
-              <div className="ai-event-card" key={idx}>
+              <div
+                className="ai-event-card tappable"
+                key={idx}
+                role="button"
+                tabIndex={0}
+                onClick={() => openWebSearch([p.title, p.location].filter(Boolean).join(' '))}
+              >
                 <div
                   className="ai-event-img"
                   style={
@@ -214,18 +243,23 @@ export function PlanScreen({ user }: { user: User }) {
                     </span>
                   </div>
                   {p.location && (
-                    <button type="button" className="eloc eloc-link" onClick={() => openInMaps(p.location)}>
+                    <button
+                      type="button"
+                      className="eloc eloc-link"
+                      onClick={(e) => { e.stopPropagation(); openInMaps(p.location); }}
+                    >
                       📍 {p.location}
                     </button>
                   )}
                   {p.description && (
                     <div className="eloc" style={{ whiteSpace: 'pre-wrap', marginTop: 4 }}>{p.description}</div>
                   )}
+                  <div className="ai-event-info-hint">🔎 タップで詳しい情報サイトを開く</div>
                   <button
                     className="btn sm"
                     style={{ marginTop: 8 }}
                     disabled={savedAi[idx]}
-                    onClick={() => saveAiPlan(p, idx)}
+                    onClick={(e) => { e.stopPropagation(); saveAiPlan(p, idx); }}
                   >
                     {savedAi[idx] ? '保存済み' : '＋ メモに保存'}
                   </button>
@@ -236,9 +270,12 @@ export function PlanScreen({ user }: { user: User }) {
         )}
       </div>
 
-      {/* --- やりたいことメモ（日付なし） --- */}
-      <div className="section-title">やりたいこと・行きたい場所メモ</div>
-      <div className="card" style={{ marginBottom: 16 }}>
+      {/* --- ふたりのプラン帳（自分で入れる系をひとまとめ） --- */}
+      <div className="section-title">📝 ふたりのプラン帳</div>
+      <div className="card plan-book" style={{ marginBottom: 18 }}>
+        <p className="muted plan-book-lead">
+          日付を決めずに「やりたいこと」をストック。保存したものを<strong>タップすると日付を入れてカレンダーに追加</strong>できます。
+        </p>
         <div className="field">
           <label>やりたいこと / プラン名</label>
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="例: 水族館デート" />
@@ -254,27 +291,44 @@ export function PlanScreen({ user }: { user: User }) {
         <button className="btn" disabled={saving || (!title.trim() && !location.trim() && !desc.trim())} onClick={saveIdea}>
           {saving ? '保存中…' : '＋ メモを保存'}
         </button>
-      </div>
 
-      {ideas.length > 0 && (
-        <div style={{ marginBottom: 18 }}>
-          <div className="section-title">保存したプラン（{ideas.length}）</div>
-          {ideas.map((it) => (
-            <div className="event-card" key={it.appEventId} style={{ ['--evt-color' as string]: '#b39ddf' }}>
-              <div style={{ flex: 1 }}>
-                <div className="etitle">{it.emoji ? `${it.emoji} ` : ''}{it.title}</div>
-                {it.location && (
-                  <button type="button" className="eloc eloc-link" onClick={() => openInMaps(it.location)}>
-                    📍 {it.location}
-                  </button>
-                )}
-                {it.description && <div className="eloc" style={{ whiteSpace: 'pre-wrap', marginTop: 4 }}>{it.description}</div>}
+        {ideas.length > 0 && (
+          <>
+            <div className="plan-book-divider">保存したプラン（{ideas.length}）</div>
+            {ideas.map((it) => (
+              <div
+                className="event-card idea-card"
+                key={it.appEventId}
+                style={{ ['--evt-color' as string]: '#b39ddf' }}
+                role="button"
+                tabIndex={0}
+                onClick={() => openIdeaInCalendar(it)}
+              >
+                <div style={{ flex: 1 }}>
+                  <div className="etitle">{it.emoji ? `${it.emoji} ` : ''}{it.title}</div>
+                  {it.location && (
+                    <button
+                      type="button"
+                      className="eloc eloc-link"
+                      onClick={(e) => { e.stopPropagation(); openInMaps(it.location); }}
+                    >
+                      📍 {it.location}
+                    </button>
+                  )}
+                  {it.description && <div className="eloc" style={{ whiteSpace: 'pre-wrap', marginTop: 4 }}>{it.description}</div>}
+                  <div className="idea-hint">📅 タップして日付を入れる → カレンダーへ</div>
+                </div>
+                <button
+                  className="btn sm secondary"
+                  onClick={(e) => { e.stopPropagation(); removeIdea(it.appEventId); }}
+                >
+                  削除
+                </button>
               </div>
-              <button className="btn sm secondary" onClick={() => removeIdea(it.appEventId)}>削除</button>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </>
+        )}
+      </div>
 
       {/* --- 空いてる週末のおすすめ --- */}
       <div className="section-title">空いてる週末のおすすめ</div>

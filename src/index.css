@@ -360,6 +360,19 @@ input, textarea, select { font-family: inherit; font-size: 16px; }
   padding: 3px 9px; border-radius: 999px; backdrop-filter: blur(2px);
 }
 .ai-event-body { padding: 12px 14px; }
+.ai-event-card.tappable { cursor: pointer; transition: transform .12s; }
+.ai-event-card.tappable:active { transform: scale(.99); }
+.ai-event-info-hint { margin-top: 6px; font-size: 11px; color: var(--primary); font-weight: 700; }
+
+/* ---- ふたりのプラン帳（入力＋保存リストをひとまとめ） ---- */
+.plan-book-lead { font-size: 12px; margin-bottom: 12px; }
+.plan-book-divider {
+  margin: 16px 0 10px; padding-top: 12px; border-top: 1px dashed var(--line, #e7e0f0);
+  font-size: 13px; font-weight: 800; color: var(--text-soft);
+}
+.idea-card { cursor: pointer; transition: transform .12s; }
+.idea-card:active { transform: scale(.99); }
+.idea-hint { margin-top: 6px; font-size: 11px; color: var(--primary); font-weight: 700; }
 
 /* ---- 絵文字 / タイトル ---- */
 .title-row { display: flex; gap: 10px; align-items: center; }
