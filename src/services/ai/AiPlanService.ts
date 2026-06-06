@@ -174,7 +174,7 @@ export async function fetchAiPlans(req: AiPlanRequest): Promise<AiPlanResult> {
       ok: false,
       plans: [],
       error:
-        'AIの無料枠の上限に達しました（429）。少し時間をおくか、課金(Blaze)を有効にしたプロジェクトのキーに変えると安定します。',
+        '今日のAIおすすめは上限に達しました。また明日ためしてね。それまでは下の「🔍 Webで検索」が使えます。',
     };
   }
   if (lastStatus === 0 && r2.status === 0) {
