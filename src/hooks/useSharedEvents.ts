@@ -3,6 +3,7 @@ import type { CalendarEvent, EventVisibility } from '@/types';
 import { services } from '@/services/container';
 import { APP_CONFIG } from '@/config/appConfig';
 import { newId } from '@/utils/id';
+import { dedupeSharedEvents } from '@/utils/dedupeEvents';
 
 // 共有予定の書き込み先Googleカレンダー（Firestore設定 > env の順で解決）。
 function googleSharedCalId(): string | null {
@@ -26,11 +27,11 @@ export function useSharedEvents(currentUserId: string | null) {
   useEffect(() => {
     const unsub = services.eventsRepo.subscribe((all) => {
       setEvents(
-        all.filter(
+        dedupeSharedEvents(all.filter(
           (e) =>
             e.calendarType === 'shared' &&
             (e.visibility === 'shared' || (e.visibility === 'private' && e.createdBy === currentUserId)),
-        ),
+        )),
       );
       for (const e of all) {
         if (e.calendarType === 'shared') services.notifications.scheduleEventReminder(e);

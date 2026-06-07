@@ -119,9 +119,9 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
               <span className="v">{lastGoogleSyncAt ? fmtYmdHm(new Date(lastGoogleSyncAt)) : '未取得'}</span>
             </div>
             <p className="muted" style={{ margin: '10px 0' }}>
-              レベッカが一度読み込んだGoogle予定はFirestoreに保存されます。普段は再連携なしで開けて、Googleから最新に更新したい時だけ連携します。
+              Google共有カレンダーで作った予定をアプリへ取り込むには、この端末でGoogleカレンダー連携が必要です。Firestoreに入った予定は2人に同期されます。
             </p>
-            {user.role === 'rebecca' && !gConnected && (
+            {!gConnected && (
               <button className="btn" disabled={gBusy} onClick={connectGoogle}>
                 {gBusy ? '連携中…' : 'Googleカレンダーと連携する'}
               </button>
