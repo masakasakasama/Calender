@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
+import { httpsCallable } from 'firebase/functions';
 import { APP_CONFIG } from '@/config/appConfig';
 import { services } from '@/services/container';
+import { firebaseFunctions } from '@/services/firebase/firebaseApp';
 import type { CalendarEvent, User } from '@/types';
 import { staleGoogleSharedEventIds } from '@/utils/googleSharedSync';
 
@@ -50,16 +52,28 @@ function mergeGoogleSharedEvent(existing: CalendarEvent | undefined, incoming: C
 
 export function useGoogleSharedCalendarSync(user: User | null) {
   useEffect(() => {
-    if (!user || services.backendName !== 'firebase' || !services.calendar.listGoogleSharedEvents) return;
+    if (!user || services.backendName !== 'firebase') return;
 
     let running = false;
     const run = async () => {
       if (running) return;
       const googleCalendarId = googleSharedCalId();
       if (!googleCalendarId) return;
-      if (!(services.auth.isGoogleCalendarConnected?.() ?? false)) return;
 
       running = true;
+      try {
+        await httpsCallable(firebaseFunctions(), 'syncSharedGoogleCalendar')({});
+        running = false;
+        return;
+      } catch {
+        // Fall back to direct browser sync only if this device already has a Calendar token.
+      }
+
+      if (!(services.auth.isGoogleCalendarConnected?.() ?? false) || !services.calendar.listGoogleSharedEvents) {
+        running = false;
+        return;
+      }
+
       try {
         const incoming = await services.calendar.listGoogleSharedEvents!(googleCalendarId);
         const localBeforeUpsert = services.eventsRepo.getAll();

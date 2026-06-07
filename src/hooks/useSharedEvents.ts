@@ -4,6 +4,7 @@ import { services } from '@/services/container';
 import { APP_CONFIG } from '@/config/appConfig';
 import { newId } from '@/utils/id';
 import { dedupeSharedEvents, hiddenSharedDuplicateIds } from '@/utils/dedupeEvents';
+import { deletedGoogleTombstoneIds } from '@/utils/deletedEventTombstones';
 
 // 共有予定の書き込み先Googleカレンダー（Firestore設定 > env の順で解決）。
 function googleSharedCalId(): string | null {
@@ -33,7 +34,8 @@ export function useSharedEvents(currentUserId: string | null) {
             (e.visibility === 'shared' || (e.visibility === 'private' && e.createdBy === currentUserId)),
         );
       setEvents(dedupeSharedEvents(sharedVisible));
-      for (const appEventId of hiddenSharedDuplicateIds(sharedVisible)) {
+      const cleanupIds = new Set([...hiddenSharedDuplicateIds(sharedVisible), ...deletedGoogleTombstoneIds(sharedVisible)]);
+      for (const appEventId of cleanupIds) {
         if (dedupeCleanup.current.has(appEventId)) continue;
         dedupeCleanup.current.add(appEventId);
         void services.eventsRepo.softDelete(appEventId, currentUserId ?? 'system-dedupe').catch(() => {

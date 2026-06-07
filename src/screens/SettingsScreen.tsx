@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import type { CalendarEvent, ShareLink, User } from '@/types';
 import { APP_CONFIG } from '@/config/appConfig';
 import { useUpdate } from '@/hooks/useUpdate';
@@ -15,36 +15,12 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
   const config = services.settingsRepo.getAppConfig();
   const googleCalId = config.googleSharedCalendarId ?? APP_CONFIG.googleSharedCalendarId;
   const rebeccaSettings = services.settingsRepo.getRebeccaSettings();
-  const hasRebeccaCache = rebeccaSettings.length > 0;
   const lastGoogleSyncAt = rebeccaSettings
     .map((s) => s.lastSyncedAt)
     .filter(Boolean)
     .sort()
     .pop();
-  const googleConnectionStatus = services.auth.isGoogleCalendarConnected?.()
-    ? '連携済み'
-    : hasRebeccaCache
-      ? 'キャッシュ使用'
-      : user.role === 'rebecca'
-        ? '未連携'
-        : '不要';
-  const [gConnected, setGConnected] = useState<boolean>(services.auth.isGoogleCalendarConnected?.() ?? false);
-  const [gBusy, setGBusy] = useState(false);
-  const [gErr, setGErr] = useState<string | null>(null);
   const backupInput = useRef<HTMLInputElement | null>(null);
-
-  const connectGoogle = async () => {
-    setGErr(null);
-    setGBusy(true);
-    try {
-      const ok = (await services.auth.connectGoogleCalendar?.()) ?? false;
-      setGConnected(ok || (services.auth.isGoogleCalendarConnected?.() ?? false));
-    } catch (e) {
-      setGErr(e instanceof Error ? e.message : 'Google連携に失敗しました');
-    } finally {
-      setGBusy(false);
-    }
-  };
 
   const exportBackup = () => {
     const payload = {
@@ -111,22 +87,16 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
               <span className="v">{googleCalId ? '設定済み' : '未設定'}</span>
             </div>
             <div className="set-row">
-              <span>この端末の連携</span>
-              <span className="v">{googleConnectionStatus}</span>
+              <span>同期方式</span>
+              <span className="v">サーバー自動同期</span>
             </div>
             <div className="set-row">
               <span>Google最終取得</span>
               <span className="v">{lastGoogleSyncAt ? fmtYmdHm(new Date(lastGoogleSyncAt)) : '未取得'}</span>
             </div>
             <p className="muted" style={{ margin: '10px 0' }}>
-              Google共有カレンダーで作った予定をアプリへ取り込むには、この端末でGoogleカレンダー連携が必要です。Firestoreに入った予定は2人に同期されます。
+              共有Googleカレンダーはサーバー側でFirestoreに同期します。この端末でGoogleカレンダー連携をやり直す必要はありません。
             </p>
-            {!gConnected && (
-              <button className="btn" disabled={gBusy} onClick={connectGoogle}>
-                {gBusy ? '連携中…' : 'Googleカレンダーと連携する'}
-              </button>
-            )}
-            {gErr && <p className="login-error" style={{ marginTop: 10 }}>{gErr}</p>}
           </div>
         </>
       )}

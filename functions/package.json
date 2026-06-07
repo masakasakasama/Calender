@@ -1,7 +1,9 @@
 {
   "name": "calender-functions",
   "description": "Cloud Functions for calender (AI date-plan suggestions)",
-  "engines": { "node": "20" },
+  "engines": {
+    "node": "20"
+  },
   "main": "lib/index.js",
   "type": "commonjs",
   "scripts": {
@@ -10,7 +12,8 @@
   },
   "dependencies": {
     "firebase-admin": "^12.6.0",
-    "firebase-functions": "^6.1.0"
+    "firebase-functions": "^6.1.0",
+    "google-auth-library": "^9.15.1"
   },
   "devDependencies": {
     "typescript": "^5.6.3"
