@@ -71,7 +71,6 @@ export function isLikelySyncDuplicate(a: CalendarEvent, b: CalendarEvent): boole
   const sameTitleAndDay = fuzzySharedKey(a) === fuzzySharedKey(b);
   if (!sameTitleAndDay) return false;
   if (!hasGoogleLineage(a) || !hasGoogleLineage(b)) return false;
-  if (isLongDayEvent(a) || isLongDayEvent(b)) return true;
   if (a.sourceGoogleEventId && b.googleEventId) return true;
   if (b.sourceGoogleEventId && a.googleEventId) return true;
   if (a.sourceGoogleEventId && b.createdBy === 'google-shared') return true;
