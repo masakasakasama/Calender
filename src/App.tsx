@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useGoogleSync } from '@/hooks/useGoogleSync';
+import { useGoogleSharedCalendarSync } from '@/hooks/useGoogleSharedCalendarSync';
 import { services } from '@/services/container';
 import { LoginScreen } from '@/screens/LoginScreen';
 import { SharedScreen } from '@/screens/SharedScreen';
@@ -23,6 +24,7 @@ export default function App() {
   const { unreadCount } = useNotifications();
   // レベッカのGoogle予定を自動同期（タブを開かなくても動く）。
   useGoogleSync(user);
+  useGoogleSharedCalendarSync(user);
 
   const [cloudError, setCloudError] = useState<string | null>(null);
   // ログイン時に、端末ローカルだけの予定を自動でクラウドへ送り直す（取りこぼし防止）。

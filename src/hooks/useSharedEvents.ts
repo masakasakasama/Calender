@@ -53,7 +53,15 @@ export function useSharedEvents(currentUserId: string | null) {
     try {
       const gid = await services.calendar.pushEventToGoogle(gcal, ev);
       if (gid) {
-        await services.eventsRepo.upsert({ ...ev, googleEventId: gid, googleCalendarId: gcal, syncStatus: 'synced', syncError: null });
+        await services.eventsRepo.upsert({
+          ...ev,
+          googleEventId: gid,
+          googleCalendarId: gcal,
+          sharedGoogleCalendarId: gcal,
+          sharedGoogleEventId: gid,
+          syncStatus: 'synced',
+          syncError: null,
+        });
       }
     } catch {
       /* Googleへの反映は任意。失敗しても何もしない（アプリ内の共有予定は有効） */
@@ -145,7 +153,7 @@ export function useSharedEvents(currentUserId: string | null) {
       // 実Googleカレンダーにも反映済みなら削除する。
       const existing = services.eventsRepo.getById(appEventId);
       const gid = existing?.googleEventId;
-      const gcal = googleSharedCalId();
+      const gcal = existing?.googleCalendarId ?? googleSharedCalId();
       if (gid && gcal && services.calendar.deleteEventFromGoogle) {
         try {
           await services.calendar.deleteEventFromGoogle(gcal, gid);

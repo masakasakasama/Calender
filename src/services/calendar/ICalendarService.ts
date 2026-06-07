@@ -19,6 +19,9 @@ export interface ICalendarService {
   /** events.list（共有カレンダー）相当。彼氏・レベッカ両方が呼べる。 */
   listSharedEvents(sharedCalendarId: string): Promise<CalendarEvent[]>;
 
+  /** Real Google shared calendar events. Used to import events created directly in Google Calendar. */
+  listGoogleSharedEvents?(googleCalendarId: string): Promise<CalendarEvent[]>;
+
   // --- レベッカ専用（本人ログイン時のみ） -----------------------------
   /**
    * calendarList.list 相当。レベッカ本人の既存カレンダー一覧。

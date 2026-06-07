@@ -19,6 +19,7 @@ interface GoogleCalendarListItem {
 
 interface GoogleEventItem {
   id: string;
+  status?: string;
   summary?: string;
   description?: string;
   location?: string;
@@ -55,6 +56,17 @@ function toIso(input?: { dateTime?: string; date?: string }): string {
   return new Date().toISOString();
 }
 
+function stableGoogleImportId(prefix: string, calendarId: string, eventId: string): string {
+  let h1 = 0;
+  let h2 = 0;
+  const seed = `${calendarId}:${eventId}`;
+  for (let i = 0; i < seed.length; i++) {
+    h1 = (h1 * 31 + seed.charCodeAt(i)) >>> 0;
+    h2 = (h2 * 131 + seed.charCodeAt(i)) >>> 0;
+  }
+  return `${prefix}-${h1.toString(16)}${h2.toString(16)}`;
+}
+
 export class GoogleCalendarService implements ICalendarService {
   constructor(
     private events: IEventsRepository,
@@ -69,6 +81,66 @@ export class GoogleCalendarService implements ICalendarService {
     return this.events
       .getAll()
       .filter((e) => e.calendarType === 'shared' && e.sharedGoogleCalendarId === sharedCalendarId);
+  }
+
+  async listGoogleSharedEvents(calendarId: string): Promise<CalendarEvent[]> {
+    const now = new Date();
+    const from = new Date(now.getFullYear(), 0, 1);
+    const to = new Date(now);
+    to.setFullYear(to.getFullYear() + 1);
+
+    const calColors = await this.calendarColorMap();
+    const qs = new URLSearchParams({
+      singleEvents: 'true',
+      orderBy: 'startTime',
+      timeMin: from.toISOString(),
+      timeMax: to.toISOString(),
+      maxResults: '2500',
+    });
+    const data = await authed<{ items?: GoogleEventItem[] }>(
+      this.tokenProvider,
+      `/calendars/${encodeURIComponent(calendarId)}/events?${qs.toString()}`,
+    );
+
+    return (data.items ?? [])
+      .filter((ev) => ev.id && ev.status !== 'cancelled')
+      .map((ev): CalendarEvent => {
+        const updatedAt = ev.updated ? new Date(ev.updated).toISOString() : new Date().toISOString();
+        const title = ev.summary ?? 'No title';
+        const color = (ev.colorId && GOOGLE_EVENT_COLORS[ev.colorId]) || calColors[calendarId] || null;
+        return {
+          appEventId: stableGoogleImportId('gshared', calendarId, ev.id),
+          title,
+          description: ev.description ?? '',
+          location: ev.location ?? '',
+          start: toIso(ev.start),
+          end: toIso(ev.end),
+          allDay: Boolean(ev.start?.date && !ev.start?.dateTime),
+          reminderMinutes: null,
+          color,
+          emoji: suggestEmoji(title),
+          categoryId: 'other',
+          mapsPlaceId: null,
+          recurrence: null,
+          recurrenceParentId: null,
+          version: 1,
+          calendarType: 'shared',
+          createdBy: 'google-shared',
+          updatedBy: 'google-shared',
+          googleCalendarId: calendarId,
+          googleEventId: ev.id,
+          sourceGoogleCalendarId: null,
+          sourceGoogleEventId: null,
+          sharedGoogleCalendarId: calendarId,
+          sharedGoogleEventId: ev.id,
+          visibility: 'shared',
+          syncStatus: 'synced',
+          syncError: null,
+          createdAt: updatedAt,
+          updatedAt,
+          deletedAt: null,
+        };
+      });
   }
 
   async listRebeccaCalendars(): Promise<GoogleCalendarSummary[]> {
