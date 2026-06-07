@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { APP_CONFIG } from '@/config/appConfig';
 import { services } from '@/services/container';
 import type { CalendarEvent, User } from '@/types';
+import { staleGoogleSharedEventIds } from '@/utils/googleSharedSync';
 
 function googleSharedCalId(): string | null {
   return services.settingsRepo.getAppConfig().googleSharedCalendarId ?? APP_CONFIG.googleSharedCalendarId ?? null;
@@ -61,9 +62,17 @@ export function useGoogleSharedCalendarSync(user: User | null) {
       running = true;
       try {
         const incoming = await services.calendar.listGoogleSharedEvents!(googleCalendarId);
+        const localBeforeUpsert = services.eventsRepo.getAll();
         for (const ev of incoming) {
-          const existing = services.eventsRepo.getAll().find((local) => sameGoogleSharedEvent(local, ev));
+          const existing = localBeforeUpsert.find((local) => sameGoogleSharedEvent(local, ev));
           await services.eventsRepo.upsert(mergeGoogleSharedEvent(existing, ev, user.userId));
+        }
+        for (const appEventId of staleGoogleSharedEventIds({
+          localEvents: localBeforeUpsert,
+          incomingEvents: incoming,
+          googleCalendarId,
+        })) {
+          await services.eventsRepo.softDelete(appEventId, user.userId);
         }
       } catch {
         /* Leave the last Firestore snapshot in place and retry on the next sync trigger. */
