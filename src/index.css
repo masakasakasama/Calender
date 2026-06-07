@@ -360,6 +360,28 @@ input, textarea, select { font-family: inherit; font-size: 16px; }
 .research-section { margin: 0 0 20px; }
 .research-meta { font-size: 12px; font-weight: 700; color: var(--primary-d); margin: 0 2px 6px; }
 .research-summary { font-size: 12px; color: var(--text-soft); line-height: 1.5; margin: 0 2px 10px; }
+.week-tabs {
+  display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 10px; margin-bottom: 6px;
+  scrollbar-width: none;
+}
+.week-tabs::-webkit-scrollbar { display: none; }
+.week-tab {
+  flex: 0 0 auto; min-width: 82px; height: 46px; border-radius: 14px;
+  background: rgba(255,255,255,.78); border: 1.5px solid #fff; color: var(--text-soft);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  box-shadow: var(--shadow-sm); font-weight: 900;
+}
+.week-tab span { font-size: 13px; line-height: 1; }
+.week-tab small { font-size: 10px; font-weight: 800; opacity: .78; }
+.week-tab.active {
+  color: #fff; border-color: rgba(255,255,255,.95);
+  background: linear-gradient(135deg, var(--primary), var(--lavender));
+}
+.weekend-panel { animation: softIn .16s ease-out; }
+@keyframes softIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 .research-card {
   width: 100%; display: flex; align-items: center; gap: 12px; text-align: left;
   background: linear-gradient(135deg, rgba(255,255,255,.92), var(--surface-2));
@@ -391,6 +413,11 @@ input, textarea, select { font-family: inherit; font-size: 16px; }
 .ai-event-card.tappable:active { transform: scale(.99); }
 .ai-event-info-hint { margin-top: 6px; font-size: 11px; color: var(--primary); font-weight: 700; }
 .research-event-card .ai-event-img { height: 132px; }
+.event-chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.event-chip {
+  background: rgba(255,255,255,.8); border: 1px solid var(--line); color: var(--text-soft);
+  border-radius: 999px; padding: 2px 8px; font-size: 10px; font-weight: 800;
+}
 .preference-row {
   display: flex; gap: 8px; align-items: center; margin-top: 9px; margin-bottom: 2px;
 }

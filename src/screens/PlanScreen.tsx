@@ -1,35 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { User, CalendarEvent } from '@/types';
 import { useSharedEvents } from '@/hooks/useSharedEvents';
 import { usePlanIdeas } from '@/hooks/usePlanIdeas';
 import { useDatePlanFeedback } from '@/hooks/useDatePlanFeedback';
-import { useWeekendResearch, researchItemToInitial } from '@/hooks/useWeekendResearch';
 import { EventModal, type EventFormValue } from '@/components/calendar/EventModal';
 import { suggestPlans, planToInitial, isWeekend, TIER_LABEL } from '@/utils/datePlans';
 import { addDays, fmtYmd, WEEKDAY_LABELS } from '@/utils/date';
-import { openInMaps, openEventSearch, openWebSearch } from '@/utils/maps';
-import type { AiPlan } from '@/services/ai/AiPlanService';
-import { fetchWeeklyEvents } from '@/utils/weeklyEvents';
+import { openInMaps, openWebSearch } from '@/utils/maps';
 import { fetchEventImage } from '@/utils/eventImage';
-
-interface AiCache {
-  key: string;
-  plans: AiPlan[];
-  images: Record<number, string | null>;
-  grounded: boolean;
-}
-
-const globalCache = globalThis as typeof globalThis & { __aiPlanCache?: AiCache };
-const aiCache = globalCache.__aiPlanCache ?? null;
-
-function saveCache(cache: AiCache) {
-  globalCache.__aiPlanCache = cache;
-}
+import {
+  upcomingWeekendEventGroups,
+  weekendEventToFeedbackItem,
+  weekendEventToInitial,
+} from '@/utils/monthlyWeekendEvents';
 
 export function PlanScreen({ user }: { user: User }) {
   const { events, createEvent } = useSharedEvents(user.userId);
   const { ideas, addIdea, removeIdea } = usePlanIdeas(user.userId);
-  const { data: research, loading: researchLoading } = useWeekendResearch();
   const { feedbackByItemId, setPreference } = useDatePlanFeedback(user);
   const [adding, setAdding] = useState(false);
   const [addInitial, setAddInitial] = useState<Partial<EventFormValue> | undefined>(undefined);
@@ -38,66 +25,35 @@ export function PlanScreen({ user }: { user: User }) {
   const [location, setLocation] = useState('');
   const [desc, setDesc] = useState('');
   const [saving, setSaving] = useState(false);
-  const [searchArea, setSearchArea] = useState('');
-
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiPlans, setAiPlans] = useState<AiPlan[]>(aiCache?.plans ?? []);
-  const [aiError, setAiError] = useState<string | null>(null);
-  const [aiImages, setAiImages] = useState<Record<number, string | null>>(aiCache?.images ?? {});
-  const [aiGrounded, setAiGrounded] = useState<boolean>(aiCache?.grounded ?? true);
-  const [savedAi, setSavedAi] = useState<Record<number, boolean>>({});
-
-  const applyResult = (plans: AiPlan[], grounded: boolean, key: string) => {
-    setAiPlans(plans);
-    setAiGrounded(grounded);
-    const images: Record<number, string | null> = {};
-    plans.forEach((plan, index) => {
-      void fetchEventImage(plan.imageQuery || plan.location || plan.title).then((url) => {
-        images[index] = url;
-        setAiImages((current) => ({ ...current, [index]: url }));
-      });
-    });
-    saveCache({ key, plans, images, grounded });
-  };
-
-  const runAi = async () => {
-    const area = searchArea.trim();
-    if (area) {
-      openEventSearch(area);
-      return;
-    }
-
-    setAiLoading(true);
-    setAiError(null);
-    setAiPlans([]);
-    setAiImages({});
-    setSavedAi({});
-    try {
-      const weekly = await fetchWeeklyEvents();
-      if (weekly && weekly.events.length > 0) {
-        applyResult(weekly.events, true, `weekly|${weekly.generatedAt}`);
-      } else {
-        setAiError('今週のおすすめはまだ準備中です。下の「Webで検索」も使えます。');
-      }
-    } finally {
-      setAiLoading(false);
-    }
-  };
+  const [todayMarker, setTodayMarker] = useState(() => new Date().toDateString());
+  const weekendGroups = useMemo(() => upcomingWeekendEventGroups(), [todayMarker]);
+  const [activeWeekendKey, setActiveWeekendKey] = useState(weekendGroups[0]?.key ?? '');
+  const [monthlyImages, setMonthlyImages] = useState<Record<string, string | null>>({});
 
   useEffect(() => {
-    if (!aiCache && aiPlans.length === 0) void runAi();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const timer = window.setInterval(() => {
+      const next = new Date().toDateString();
+      setTodayMarker((current) => (current === next ? current : next));
+    }, 60 * 1000);
+    return () => window.clearInterval(timer);
   }, []);
 
-  const saveAiPlan = async (plan: AiPlan, index: number) => {
-    const description = [plan.dateText && `日程: ${plan.dateText}`, plan.description].filter(Boolean).join('\n');
-    await addIdea({
-      title: `${plan.emoji ? `${plan.emoji} ` : ''}${plan.title}`.trim(),
-      location: plan.location,
-      description,
+  useEffect(() => {
+    if (!weekendGroups.some((group) => group.key === activeWeekendKey)) {
+      setActiveWeekendKey(weekendGroups[0]?.key ?? '');
+    }
+  }, [activeWeekendKey, weekendGroups]);
+
+  useEffect(() => {
+    weekendGroups.flatMap((group) => group.events).forEach((item) => {
+      if (item.imageUrl || monthlyImages[item.id] !== undefined) return;
+      void fetchEventImage(item.imageQuery || item.locationName || item.title).then((url) => {
+        setMonthlyImages((current) => ({ ...current, [item.id]: url }));
+      });
     });
-    setSavedAi((current) => ({ ...current, [index]: true }));
-  };
+  }, [monthlyImages, weekendGroups]);
+
+  const activeWeekend = weekendGroups.find((group) => group.key === activeWeekendKey) ?? weekendGroups[0];
 
   const openIdeaInCalendar = (idea: CalendarEvent) => {
     const today = new Date();
@@ -176,183 +132,113 @@ export function PlanScreen({ user }: { user: User }) {
         空いている週末に、ふたりの予定候補を表示します。気に入った候補は予定に追加できます。
       </div>
 
-      <div className="section-title">今週のおすすめイベント</div>
-      <div className="card" style={{ marginBottom: 16 }}>
-        <div className="loc-row" style={{ marginBottom: 6 }}>
-          <input
-            value={searchArea}
-            onChange={(event) => setSearchArea(event.target.value)}
-            placeholder="エリア指定（任意）例: 東京 / 横浜"
-          />
-          <button type="button" className="btn sm" onClick={runAi} disabled={aiLoading}>
-            {aiLoading ? '取得中...' : '更新'}
-          </button>
-        </div>
-        <p className="muted" style={{ fontSize: 12 }}>
-          {searchArea.trim()
-            ? `「${searchArea.trim()}」をWebで検索します。`
-            : '毎週更新される東京周辺の週末イベントを表示します。'}
-        </p>
-
-        {aiLoading && <p className="muted" style={{ marginTop: 10 }}>おすすめを読み込み中...</p>}
-
-        {aiError && !aiLoading && (
-          <div style={{ marginTop: 10 }}>
-            <p className="muted" style={{ color: '#c46', marginBottom: 8 }}>{aiError}</p>
-            <button type="button" className="btn sm secondary" onClick={() => openEventSearch(searchArea)}>
-              Webで検索する
-            </button>
-          </div>
-        )}
-
-        {aiPlans.length > 0 && !aiGrounded && (
-          <p className="muted" style={{ marginTop: 8, fontSize: 11 }}>
-            最新の開催情報は各公式サイトで確認してください。
-          </p>
-        )}
-
-        {aiPlans.length > 0 && (
-          <div style={{ marginTop: 12 }}>
-            {aiPlans.map((plan, index) => (
-              <div
-                className="ai-event-card tappable"
-                key={`${plan.title}-${index}`}
-                role="button"
-                tabIndex={0}
-                onClick={() => openWebSearch([plan.title, plan.location].filter(Boolean).join(' '))}
-              >
-                <div
-                  className="ai-event-img"
-                  style={aiImages[index] ? { backgroundImage: `url("${aiImages[index]}")` } : undefined}
-                >
-                  {!aiImages[index] && <span className="ai-event-emoji">{plan.emoji || '✨'}</span>}
-                  {plan.dateText && <span className="ai-event-date">日程 {plan.dateText}</span>}
-                </div>
-                <div className="ai-event-body">
-                  <div className="etitle">
-                    {plan.emoji ? `${plan.emoji} ` : ''}
-                    {plan.title}
-                    <span className="muted" style={{ fontWeight: 400, marginLeft: 6 }}>
-                      ({TIER_LABEL[plan.tier]})
-                    </span>
-                  </div>
-                  {plan.location && (
-                    <button
-                      type="button"
-                      className="eloc eloc-link"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        openInMaps(plan.location);
-                      }}
-                    >
-                      {plan.location}
-                    </button>
-                  )}
-                  {plan.description && (
-                    <div className="eloc" style={{ whiteSpace: 'pre-wrap', marginTop: 4 }}>
-                      {plan.description}
-                    </div>
-                  )}
-                  <button
-                    className="btn sm"
-                    style={{ marginTop: 8 }}
-                    disabled={savedAi[index]}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      void saveAiPlan(plan, index);
-                    }}
-                  >
-                    {savedAi[index] ? '保存済み' : 'メモに保存'}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
       <section className="research-section">
-        <div className="section-title">しっかりサーチ</div>
-        {researchLoading && <div className="list-empty">リサーチ結果を読み込み中...</div>}
-        {!researchLoading && !research && <div className="list-empty">まだリサーチ結果がありません</div>}
-        {research && (
+        <div className="section-title">週末デート候補</div>
+        {weekendGroups.length === 0 && <div className="list-empty">次の週末候補を準備中です</div>}
+        {weekendGroups.length > 0 && (
           <>
-            <div className="research-meta">
-              {research.targetWeekend.label} / {research.area}
-            </div>
-            <div className="research-summary">{research.summary}</div>
-            <div style={{ marginTop: 12 }}>
-              {research.items.map((item) => (
-                <div
-                  className="ai-event-card tappable research-event-card"
-                  key={item.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => openWebSearch(`${item.title} ${item.locationName}`)}
+            <div className="week-tabs" role="tablist" aria-label="週末を選択">
+              {weekendGroups.map((group) => (
+                <button
+                  key={group.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={group.key === activeWeekend?.key}
+                  className={`week-tab${group.key === activeWeekend?.key ? ' active' : ''}`}
+                  onClick={() => setActiveWeekendKey(group.key)}
                 >
-                  <div
-                    className="ai-event-img"
-                    style={item.imageUrl ? { backgroundImage: `url("${item.imageUrl}")` } : undefined}
-                  >
-                    {!item.imageUrl && <span className="ai-event-emoji">{item.emoji}</span>}
-                    <span className="ai-event-date">
-                      {item.dateLabel} / {item.area}
-                    </span>
-                  </div>
-                  <div className="ai-event-body">
-                    <div className="etitle">
-                      {item.emoji} {item.title}
-                    </div>
-                    <button
-                      type="button"
-                      className="eloc eloc-link"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        openInMaps(item.locationName);
-                      }}
-                    >
-                      {item.locationName}
-                    </button>
-                    <div className="eloc" style={{ whiteSpace: 'pre-wrap', marginTop: 4 }}>
-                      {item.summary}
-                    </div>
-                    <div className="ai-event-info-hint">タップで検索</div>
-                    <div className="preference-row" aria-label="好みを記録">
-                      <button
-                        type="button"
-                        className={`pref-btn${feedbackByItemId[item.id]?.preference === 'like' ? ' active like' : ''}`}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          void setPreference(item, 'like');
-                        }}
-                      >
-                        好き
-                      </button>
-                      <button
-                        type="button"
-                        className={`pref-btn${feedbackByItemId[item.id]?.preference === 'dislike' ? ' active dislike' : ''}`}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          void setPreference(item, 'dislike');
-                        }}
-                      >
-                        微妙
-                      </button>
-                    </div>
-                    <button
-                      className="btn sm"
-                      style={{ marginTop: 8 }}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        pick(researchItemToInitial(item));
-                      }}
-                    >
-                      ＋ 予定に追加
-                    </button>
-                  </div>
-                </div>
+                  <span>{group.tabLabel}</span>
+                  <small>{group.events.length}件</small>
+                </button>
               ))}
             </div>
+
+            {activeWeekend && (
+              <div className="weekend-panel">
+                <div className="research-meta">{activeWeekend.label} / 東京周辺</div>
+                <div className="research-summary">
+                  終了した週末は自動で外れます。カードをタップすると検索、場所名を押すと地図を開きます。
+                </div>
+                <div style={{ marginTop: 12 }}>
+                  {activeWeekend.events.map((item) => {
+                    const feedbackItem = weekendEventToFeedbackItem(item);
+                    const imageUrl = item.imageUrl ?? monthlyImages[item.id] ?? null;
+                    return (
+                      <div
+                        className="ai-event-card tappable research-event-card"
+                        key={item.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => openWebSearch(`${item.title} ${item.locationName}`)}
+                      >
+                        <div className="ai-event-img" style={imageUrl ? { backgroundImage: `url("${imageUrl}")` } : undefined}>
+                          {!imageUrl && <span className="ai-event-emoji">{item.emoji}</span>}
+                          <span className="ai-event-date">
+                            {item.dateLabel} / {item.area}
+                          </span>
+                        </div>
+                        <div className="ai-event-body">
+                          <div className="etitle">
+                            {item.emoji} {item.title}
+                          </div>
+                          <button
+                            type="button"
+                            className="eloc eloc-link"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              openInMaps(item.locationName);
+                            }}
+                          >
+                            {item.locationName}
+                          </button>
+                          <div className="eloc" style={{ whiteSpace: 'pre-wrap', marginTop: 4 }}>
+                            {item.summary}
+                          </div>
+                          <div className="event-chip-row">
+                            {item.tags.slice(0, 4).map((tag) => (
+                              <span key={tag} className="event-chip">{tag}</span>
+                            ))}
+                          </div>
+                          <div className="ai-event-info-hint">タップで検索</div>
+                          <div className="preference-row" aria-label="好みを記録">
+                            <button
+                              type="button"
+                              className={`pref-btn${feedbackByItemId[item.id]?.preference === 'like' ? ' active like' : ''}`}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void setPreference(feedbackItem, 'like');
+                              }}
+                            >
+                              好き
+                            </button>
+                            <button
+                              type="button"
+                              className={`pref-btn${feedbackByItemId[item.id]?.preference === 'dislike' ? ' active dislike' : ''}`}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void setPreference(feedbackItem, 'dislike');
+                              }}
+                            >
+                              微妙
+                            </button>
+                          </div>
+                          <button
+                            className="btn sm"
+                            style={{ marginTop: 8 }}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              pick(weekendEventToInitial(item));
+                            }}
+                          >
+                            ＋ 予定に追加
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </>
         )}
       </section>
