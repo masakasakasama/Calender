@@ -37,23 +37,43 @@ function rankSharedDuplicate(event: CalendarEvent): number {
   let score = 0;
   if (event.createdBy === 'google-shared') score += 10;
   if (event.sharedGoogleCalendarId && event.googleEventId) score += 8;
-  if (!event.allDay) score += 4;
+  if (!isLongDayEvent(event)) score += 4;
   if (event.sourceGoogleEventId) score += 2;
   if (event.location) score += 1;
   return score;
 }
 
-function chooseSharedEvent(a: CalendarEvent, b: CalendarEvent): CalendarEvent {
+export function chooseSharedEvent(a: CalendarEvent, b: CalendarEvent): CalendarEvent {
   const rankA = rankSharedDuplicate(a);
   const rankB = rankSharedDuplicate(b);
   if (rankA !== rankB) return rankA > rankB ? a : b;
   return a.updatedAt >= b.updatedAt ? a : b;
 }
 
-function isLikelySyncDuplicate(a: CalendarEvent, b: CalendarEvent): boolean {
+function isLongDayEvent(event: CalendarEvent): boolean {
+  if (event.allDay) return true;
+  const durationMs = new Date(event.end).getTime() - new Date(event.start).getTime();
+  return durationMs >= 20 * 60 * 60 * 1000;
+}
+
+function hasGoogleLineage(event: CalendarEvent): boolean {
+  return Boolean(
+    event.googleEventId ||
+      event.sourceGoogleEventId ||
+      event.sharedGoogleEventId ||
+      event.googleCalendarId ||
+      event.sourceGoogleCalendarId ||
+      event.sharedGoogleCalendarId,
+  );
+}
+
+export function isLikelySyncDuplicate(a: CalendarEvent, b: CalendarEvent): boolean {
   const sameTitleAndDay = fuzzySharedKey(a) === fuzzySharedKey(b);
   if (!sameTitleAndDay) return false;
-  if (a.allDay || b.allDay) return true;
+  if (!hasGoogleLineage(a) || !hasGoogleLineage(b)) return false;
+  if (isLongDayEvent(a) || isLongDayEvent(b)) return true;
+  if (a.sourceGoogleEventId && b.googleEventId) return true;
+  if (b.sourceGoogleEventId && a.googleEventId) return true;
   if (a.sourceGoogleEventId && b.createdBy === 'google-shared') return true;
   if (b.sourceGoogleEventId && a.createdBy === 'google-shared') return true;
   return false;
@@ -86,4 +106,43 @@ export function dedupeSharedEvents(events: CalendarEvent[]): CalendarEvent[] {
   }
 
   return [...byFuzzy.values()].sort((a, b) => a.start.localeCompare(b.start));
+}
+
+export function hiddenSharedDuplicateIds(events: CalendarEvent[]): string[] {
+  const hidden = new Set<string>();
+  const byGoogle = new Map<string, CalendarEvent>();
+  const googleless: CalendarEvent[] = [];
+
+  for (const event of events) {
+    const key = googleKey(event);
+    if (!key) {
+      googleless.push(event);
+      continue;
+    }
+    const existing = byGoogle.get(key);
+    if (!existing) {
+      byGoogle.set(key, event);
+      continue;
+    }
+    const keep = chooseSharedEvent(existing, event);
+    hidden.add(keep.appEventId === existing.appEventId ? event.appEventId : existing.appEventId);
+    byGoogle.set(key, keep);
+  }
+
+  const byFuzzy = new Map<string, CalendarEvent>();
+  for (const event of [...byGoogle.values(), ...googleless]) {
+    const key = fuzzySharedKey(event);
+    const existing = byFuzzy.get(key);
+    if (!existing) {
+      byFuzzy.set(key, event);
+    } else if (isLikelySyncDuplicate(existing, event)) {
+      const keep = chooseSharedEvent(existing, event);
+      hidden.add(keep.appEventId === existing.appEventId ? event.appEventId : existing.appEventId);
+      byFuzzy.set(key, keep);
+    } else {
+      byFuzzy.set(`${key}:${event.appEventId}`, event);
+    }
+  }
+
+  return [...hidden];
 }

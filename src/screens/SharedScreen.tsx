@@ -4,6 +4,7 @@ import { useSharedEvents } from '@/hooks/useSharedEvents';
 import { CalendarView } from '@/components/calendar/CalendarView';
 import { EventModal, type EventFormValue } from '@/components/calendar/EventModal';
 import { EVENT_CATEGORIES } from '@/utils/eventStyle';
+import { dedupeSharedEvents } from '@/utils/dedupeEvents';
 
 interface SharedScreenProps {
   user: User;
@@ -62,12 +63,12 @@ export function SharedScreen({ user, openAdd, searchPulse, onAddHandled }: Share
   };
 
   const q = query.trim().toLowerCase();
-  const visibleEvents = events.filter((event) => {
+  const visibleEvents = dedupeSharedEvents(events.filter((event) => {
     const matchesText =
       !q || [event.title, event.location, event.description].some((text) => (text ?? '').toLowerCase().includes(q));
     const matchesCategory = category === 'all' || event.categoryId === category;
     return matchesText && matchesCategory;
-  });
+  }));
 
   return (
     <div>

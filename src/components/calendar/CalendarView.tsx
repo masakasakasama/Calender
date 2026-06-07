@@ -4,6 +4,7 @@ import { EventCard } from './EventCard';
 import type { EventFormValue } from './EventModal';
 import { useSwipeDownClose } from '@/hooks/useSwipeDownClose';
 import { eventDisplayColor } from '@/utils/eventStyle';
+import { dedupeSharedEvents } from '@/utils/dedupeEvents';
 import { suggestPlans, planToInitial, isWeekend, TIER_LABEL } from '@/utils/datePlans';
 import {
   addDays,
@@ -37,6 +38,7 @@ export function CalendarView({
   const [cursor, setCursor] = useState<Date>(new Date());
   const [slide, setSlide] = useState<'l' | 'r' | null>(null);
   const [sheetDate, setSheetDate] = useState<Date | null>(null);
+  const safeEvents = dedupeSharedEvents(events);
 
   // 外部から指定された日（週末バナー等）のシートを開く。
   useEffect(() => {
@@ -51,7 +53,7 @@ export function CalendarView({
   // その日に「かかっている」予定を返す（複数日にまたがる予定は全ての日に表示）。
   const eventsOn = (d: Date) => {
     const key = ymd(d);
-    return events
+    return safeEvents
       .filter((e) => {
         const startKey = ymd(new Date(e.start));
         // 終了が翌0:00ちょうどの場合は前日までとみなす（終日/区切り対策）。
@@ -112,7 +114,7 @@ export function CalendarView({
         onTouchEnd={onTouchEnd}
         onAnimationEnd={() => setSlide(null)}
       >
-        {mode === 'month' && <MonthView cursor={cursor} events={events} onPickDay={(d) => setSheetDate(d)} />}
+        {mode === 'month' && <MonthView cursor={cursor} events={safeEvents} onPickDay={(d) => setSheetDate(d)} />}
         {mode === 'week' && <ContinuousWeekView cursor={cursor} eventsOn={eventsOn} onSelectEvent={onSelectEvent} />}
         {mode === 'day' && <ContinuousDayView cursor={cursor} eventsOn={eventsOn} onSelectEvent={onSelectEvent} />}
       </div>
