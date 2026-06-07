@@ -39,6 +39,14 @@ export function useGoogleSync(user: User | null) {
             ),
         );
         const allLinks = services.shareLinksRepo.getAll();
+        const sourceIds = new Set(events.map((ev) => ev.sourceGoogleEventId ?? ev.appEventId));
+        for (const link of allLinks) {
+          if (link.status !== 'active') continue;
+          if (!ids.includes(link.sourceGoogleCalendarId)) continue;
+          if (sourceIds.has(link.sourceGoogleEventId)) continue;
+          await services.eventsRepo.softDelete(link.sharedGoogleEventId, user.userId).catch(() => {});
+          await services.shareLinksRepo.markRemoved(link.id).catch(() => {});
+        }
         for (const ev of events) {
           await services.eventsRepo.upsert({ ...ev, updatedAt: new Date().toISOString() }).catch(() => ev);
           const srcId = ev.sourceGoogleEventId ?? ev.appEventId;
