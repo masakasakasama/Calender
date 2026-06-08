@@ -3,6 +3,7 @@ import type { User, CalendarEvent } from '@/types';
 import { useSharedEvents } from '@/hooks/useSharedEvents';
 import { usePlanIdeas } from '@/hooks/usePlanIdeas';
 import { useDatePlanFeedback } from '@/hooks/useDatePlanFeedback';
+import { useWeekendResearch } from '@/hooks/useWeekendResearch';
 import { EventModal, type EventFormValue } from '@/components/calendar/EventModal';
 import { suggestPlans, planToInitial, isWeekend, TIER_LABEL } from '@/utils/datePlans';
 import { addDays, fmtYmd, WEEKDAY_LABELS } from '@/utils/date';
@@ -10,14 +11,16 @@ import { openInMaps, openWebSearch } from '@/utils/maps';
 import { fetchEventImage } from '@/utils/eventImage';
 import {
   upcomingWeekendEventGroups,
-  weekendEventToFeedbackItem,
-  weekendEventToInitial,
+  weekendEventToFeedbackItemWithResearch,
+  weekendEventToInitialWithResearch,
+  weekendResearchToGroups,
 } from '@/utils/monthlyWeekendEvents';
 
 export function PlanScreen({ user }: { user: User }) {
   const { events, createEvent } = useSharedEvents(user.userId);
   const { ideas, addIdea, removeIdea } = usePlanIdeas(user.userId);
   const { feedbackByItemId, setPreference } = useDatePlanFeedback(user);
+  const { data: researchedWeekend } = useWeekendResearch();
   const [adding, setAdding] = useState(false);
   const [addInitial, setAddInitial] = useState<Partial<EventFormValue> | undefined>(undefined);
 
@@ -26,7 +29,10 @@ export function PlanScreen({ user }: { user: User }) {
   const [desc, setDesc] = useState('');
   const [saving, setSaving] = useState(false);
   const [todayMarker, setTodayMarker] = useState(() => new Date().toDateString());
-  const weekendGroups = useMemo(() => upcomingWeekendEventGroups(), [todayMarker]);
+  const weekendGroups = useMemo(() => {
+    const researchedGroups = weekendResearchToGroups(researchedWeekend);
+    return researchedGroups.length > 0 ? researchedGroups : upcomingWeekendEventGroups();
+  }, [researchedWeekend, todayMarker]);
   const [activeWeekendKey, setActiveWeekendKey] = useState(weekendGroups[0]?.key ?? '');
   const [monthlyImages, setMonthlyImages] = useState<Record<string, string | null>>({});
 
@@ -161,7 +167,7 @@ export function PlanScreen({ user }: { user: User }) {
                 </div>
                 <div style={{ marginTop: 12 }}>
                   {activeWeekend.events.map((item) => {
-                    const feedbackItem = weekendEventToFeedbackItem(item);
+                    const feedbackItem = weekendEventToFeedbackItemWithResearch(item);
                     const imageUrl = item.imageUrl ?? monthlyImages[item.id] ?? null;
                     return (
                       <div
@@ -227,7 +233,7 @@ export function PlanScreen({ user }: { user: User }) {
                             style={{ marginTop: 8 }}
                             onClick={(event) => {
                               event.stopPropagation();
-                              pick(weekendEventToInitial(item));
+                              pick(weekendEventToInitialWithResearch(item));
                             }}
                           >
                             ＋ 予定に追加

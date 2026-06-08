@@ -1,5 +1,5 @@
 import type { EventFormValue } from '@/components/calendar/EventModal';
-import type { WeekendResearchItem } from '@/hooks/useWeekendResearch';
+import type { WeekendResearch, WeekendResearchItem } from '@/hooks/useWeekendResearch';
 
 export interface WeekendEventPick {
   id: string;
@@ -17,8 +17,10 @@ export interface WeekendEventPick {
   nearestStation: string;
   price: string;
   reservation: string;
+  rainFriendly?: boolean;
   tags: string[];
   summary: string;
+  coupleNote?: string;
   sourceName: string;
   url: string;
   imageUrl?: string;
@@ -560,6 +562,53 @@ export function upcomingWeekendEventGroups(now = new Date()): WeekendEventGroup[
   return MONTHLY_WEEKEND_EVENTS.filter((group) => group.endsOn >= today).slice(0, 4);
 }
 
+function toTabLabel(value: string): string {
+  const [, month, day] = value.split('-');
+  return `${Number(month)}/${Number(day)}`;
+}
+
+export function weekendResearchToGroups(research: WeekendResearch | null): WeekendEventGroup[] {
+  if (!research) return [];
+
+  const key = research.targetWeekend.start;
+  const tabLabel = `${toTabLabel(research.targetWeekend.start)}-${toTabLabel(research.targetWeekend.end)}`;
+
+  return [
+    {
+      key,
+      label: research.targetWeekend.label,
+      tabLabel,
+      startsOn: research.targetWeekend.start,
+      endsOn: research.targetWeekend.end,
+      events: research.items.map((item) => ({
+        id: item.id,
+        weekendKey: key,
+        weekendLabel: research.targetWeekend.label,
+        tabLabel,
+        title: item.title,
+        emoji: item.emoji,
+        categoryId: item.categoryId,
+        dateLabel: item.dateLabel,
+        start: item.start,
+        end: item.end,
+        area: item.area,
+        locationName: item.locationName,
+        nearestStation: item.nearestStation,
+        price: item.price,
+        reservation: item.reservation,
+        rainFriendly: item.rainFriendly,
+        tags: item.tags,
+        summary: item.summary,
+        coupleNote: item.coupleNote,
+        sourceName: item.sourceName,
+        url: item.url,
+        imageUrl: item.imageUrl ?? undefined,
+        imageQuery: `${item.title} ${item.locationName}`.trim(),
+      })),
+    },
+  ];
+}
+
 export function weekendEventToInitial(item: WeekendEventPick): Partial<EventFormValue> {
   return {
     title: `${item.emoji} ${item.title}`,
@@ -605,6 +654,61 @@ export function weekendEventToFeedbackItem(item: WeekendEventPick): WeekendResea
     tags: item.tags,
     summary: item.summary,
     coupleNote: item.summary,
+    sourceName: item.sourceName,
+    url: item.url,
+    imageUrl: item.imageUrl ?? null,
+  };
+}
+
+export function weekendEventToInitialWithResearch(item: WeekendEventPick): Partial<EventFormValue> {
+  return {
+    title: `${item.emoji} ${item.title}`,
+    description: [
+      item.summary,
+      '',
+      `譌･遞・ ${item.dateLabel}`,
+      `繧ｨ繝ｪ繧｢: ${item.area}`,
+      `譛蟇・ｊ: ${item.nearestStation}`,
+      `譁咎≡: ${item.price}`,
+      `莠育ｴ・ ${item.reservation}`,
+      `雋ｷ螟ｩ蜷悟ｿｵ蠎ｦ: ${item.rainFriendly ? '鬆伜沺OK' : '螟ｧ髫弱°繧峨°繧峨＞'}`,
+      '',
+      item.coupleNote ?? item.summary,
+      '',
+      `蜃ｺ蜈ｸ: ${item.sourceName}`,
+      item.url,
+    ].join('\n'),
+    location: item.locationName,
+    start: new Date(item.start).toISOString(),
+    end: new Date(item.end).toISOString(),
+    reminderMinutes: 60,
+    color: null,
+    emoji: item.emoji,
+    categoryId: item.categoryId,
+    mapsPlaceId: null,
+    recurrence: { frequency: 'none', count: 1 },
+    visibility: 'shared',
+  };
+}
+
+export function weekendEventToFeedbackItemWithResearch(item: WeekendEventPick): WeekendResearchItem {
+  return {
+    id: item.id,
+    title: item.title,
+    emoji: item.emoji,
+    categoryId: item.categoryId,
+    dateLabel: item.dateLabel,
+    start: item.start,
+    end: item.end,
+    area: item.area,
+    locationName: item.locationName,
+    nearestStation: item.nearestStation,
+    price: item.price,
+    reservation: item.reservation,
+    rainFriendly: item.rainFriendly ?? item.tags.includes('螻句・'),
+    tags: item.tags,
+    summary: item.summary,
+    coupleNote: item.coupleNote ?? item.summary,
     sourceName: item.sourceName,
     url: item.url,
     imageUrl: item.imageUrl ?? null,
