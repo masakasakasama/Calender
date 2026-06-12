@@ -33,7 +33,9 @@ export function PlanScreen({ user }: { user: User }) {
   const [todayMarker, setTodayMarker] = useState(() => new Date().toDateString());
   const weekendGroups = useMemo(() => {
     const researchedGroups = weekendResearchToGroups(researchedWeekend);
-    return researchedGroups.length > 0 ? researchedGroups : upcomingWeekendEventGroups();
+    const merged = new Map(upcomingWeekendEventGroups().map((group) => [group.key, group]));
+    researchedGroups.forEach((group) => merged.set(group.key, group));
+    return Array.from(merged.values()).sort((a, b) => a.startsOn.localeCompare(b.startsOn));
   }, [researchedWeekend, todayMarker]);
   const [activeWeekendKey, setActiveWeekendKey] = useState(weekendGroups[0]?.key ?? '');
   const [monthlyImages, setMonthlyImages] = useState<Record<string, string | null>>({});
@@ -133,15 +135,8 @@ export function PlanScreen({ user }: { user: User }) {
 
   return (
     <div>
-      <div className="notice">
-        日付未定の候補はプラン帳に保存できます。予定に入れるときだけ日程を決めます。
-      </div>
-
       <div className="section-title">ふたりのプラン帳</div>
       <div className="card plan-book" style={{ marginBottom: 18 }}>
-        <p className="muted plan-book-lead">
-          日付を決める前の「やりたいこと」を保存できます。編集と予定追加は別操作です。
-        </p>
         {editingIdeaId && <div className="edit-mode-note">保存済みプランを編集中</div>}
         <div className="field">
           <label>やりたいこと / プラン名</label>
@@ -197,7 +192,6 @@ export function PlanScreen({ user }: { user: User }) {
                       {idea.description}
                     </div>
                   )}
-                  <div className="idea-hint">編集するか、予定に入れる日だけ決められます</div>
                 </div>
                 <div className="idea-actions">
                   <button className="btn sm secondary" onClick={() => startEditIdea(idea)}>
@@ -257,9 +251,6 @@ export function PlanScreen({ user }: { user: User }) {
                 {activeWeekend && (
                   <div className="weekend-panel">
                     <div className="research-meta">{activeWeekend.label} / 東京周辺</div>
-                    <div className="research-summary">
-                      終了した週末は自動で外れます。カードをタップすると検索、場所名を押すと地図を開きます。
-                    </div>
                     <div style={{ marginTop: 12 }}>
                       {activeWeekend.events.map((item) => {
                         const feedbackItem = weekendEventToFeedbackItemWithResearch(item);
@@ -300,7 +291,6 @@ export function PlanScreen({ user }: { user: User }) {
                                   <span key={tag} className="event-chip">{tag}</span>
                                 ))}
                               </div>
-                              <div className="ai-event-info-hint">タップで検索</div>
                               <div className="preference-row" aria-label="好みを記録">
                                 <button
                                   type="button"
