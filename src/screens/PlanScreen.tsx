@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { User, CalendarEvent } from '@/types';
 import { useSharedEvents } from '@/hooks/useSharedEvents';
 import { usePlanIdeas } from '@/hooks/usePlanIdeas';
@@ -21,6 +21,7 @@ export function PlanScreen({ user }: { user: User }) {
   const { ideas, addIdea, updateIdea, removeIdea } = usePlanIdeas(user.userId);
   const { feedbackByItemId, setPreference } = useDatePlanFeedback(user);
   const { data: researchedWeekend } = useWeekendResearch();
+  const planFormRef = useRef<HTMLDivElement | null>(null);
   const [adding, setAdding] = useState(false);
   const [addInitial, setAddInitial] = useState<Partial<EventFormValue> | undefined>(undefined);
 
@@ -115,6 +116,9 @@ export function PlanScreen({ user }: { user: User }) {
     setTitle(idea.title);
     setLocation(idea.location ?? '');
     setDesc(idea.description ?? '');
+    window.setTimeout(() => {
+      planFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 0);
   };
 
   const cancelEditIdea = () => {
@@ -136,7 +140,7 @@ export function PlanScreen({ user }: { user: User }) {
   return (
     <div>
       <div className="section-title">ふたりのプラン帳</div>
-      <div className="card plan-book" style={{ marginBottom: 18 }}>
+      <div ref={planFormRef} className="card plan-book" style={{ marginBottom: 18 }}>
         {editingIdeaId && <div className="edit-mode-note">保存済みプランを編集中</div>}
         <div className="field">
           <label>やりたいこと / プラン名</label>
