@@ -64,9 +64,25 @@ export function usePlanIdeas(currentUserId: string | null) {
     [currentUserId],
   );
 
+  const updateIdea = useCallback(
+    async (idea: CalendarEvent, input: PlanMemoInput) => {
+      const now = new Date().toISOString();
+      await services.eventsRepo.upsert({
+        ...idea,
+        title: input.title.trim() || 'やりたいこと',
+        location: input.location,
+        description: input.description,
+        updatedBy: currentUserId ?? 'unknown',
+        updatedAt: now,
+        version: (idea.version ?? 1) + 1,
+      });
+    },
+    [currentUserId],
+  );
+
   const removeIdea = useCallback(async (appEventId: string) => {
     await services.eventsRepo.softDelete(appEventId, currentUserId ?? 'unknown');
   }, [currentUserId]);
 
-  return { ideas, addIdea, removeIdea };
+  return { ideas, addIdea, updateIdea, removeIdea };
 }

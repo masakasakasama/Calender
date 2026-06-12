@@ -5,8 +5,8 @@ import { usePlanIdeas } from '@/hooks/usePlanIdeas';
 import { useDatePlanFeedback } from '@/hooks/useDatePlanFeedback';
 import { useWeekendResearch } from '@/hooks/useWeekendResearch';
 import { EventModal, type EventFormValue } from '@/components/calendar/EventModal';
-import { suggestPlans, planToInitial, isWeekend, TIER_LABEL } from '@/utils/datePlans';
-import { addDays, fmtYmd, WEEKDAY_LABELS } from '@/utils/date';
+import { isWeekend } from '@/utils/datePlans';
+import { addDays } from '@/utils/date';
 import { openInMaps, openWebSearch } from '@/utils/maps';
 import { fetchEventImage } from '@/utils/eventImage';
 import {
@@ -17,8 +17,8 @@ import {
 } from '@/utils/monthlyWeekendEvents';
 
 export function PlanScreen({ user }: { user: User }) {
-  const { events, createEvent } = useSharedEvents(user.userId);
-  const { ideas, addIdea, removeIdea } = usePlanIdeas(user.userId);
+  const { createEvent } = useSharedEvents(user.userId);
+  const { ideas, addIdea, updateIdea, removeIdea } = usePlanIdeas(user.userId);
   const { feedbackByItemId, setPreference } = useDatePlanFeedback(user);
   const { data: researchedWeekend } = useWeekendResearch();
   const [adding, setAdding] = useState(false);
@@ -28,6 +28,8 @@ export function PlanScreen({ user }: { user: User }) {
   const [location, setLocation] = useState('');
   const [desc, setDesc] = useState('');
   const [saving, setSaving] = useState(false);
+  const [editingIdeaId, setEditingIdeaId] = useState<string | null>(null);
+  const [weekendExpanded, setWeekendExpanded] = useState(false);
   const [todayMarker, setTodayMarker] = useState(() => new Date().toDateString());
   const weekendGroups = useMemo(() => {
     const researchedGroups = weekendResearchToGroups(researchedWeekend);
@@ -91,37 +93,34 @@ export function PlanScreen({ user }: { user: User }) {
     if (!title.trim() && !location.trim() && !desc.trim()) return;
     setSaving(true);
     try {
-      await addIdea({ title, location, description: desc });
+      const editingIdea = editingIdeaId ? ideas.find((idea) => idea.appEventId === editingIdeaId) : null;
+      if (editingIdea) {
+        await updateIdea(editingIdea, { title, location, description: desc });
+      } else {
+        await addIdea({ title, location, description: desc });
+      }
       setTitle('');
       setLocation('');
       setDesc('');
+      setEditingIdeaId(null);
     } finally {
       setSaving(false);
     }
   };
 
-  const occupied = (day: Date) =>
-    events.some((event) => {
-      const start = new Date(event.start);
-      const end = new Date(new Date(event.end).getTime() - 1);
-      const key = day.toDateString();
-      for (
-        const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
-        cursor <= end;
-        cursor.setDate(cursor.getDate() + 1)
-      ) {
-        if (cursor.toDateString() === key) return true;
-      }
-      return false;
-    });
+  const startEditIdea = (idea: CalendarEvent) => {
+    setEditingIdeaId(idea.appEventId);
+    setTitle(idea.title);
+    setLocation(idea.location ?? '');
+    setDesc(idea.description ?? '');
+  };
 
-  const openWeekends: Date[] = [];
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  for (let i = 0; i < 60 && openWeekends.length < 6; i += 1) {
-    const day = addDays(today, i);
-    if (isWeekend(day) && !occupied(day)) openWeekends.push(day);
-  }
+  const cancelEditIdea = () => {
+    setEditingIdeaId(null);
+    setTitle('');
+    setLocation('');
+    setDesc('');
+  };
 
   const pick = (initial: Partial<EventFormValue>) => {
     setAddInitial(initial);
@@ -135,125 +134,15 @@ export function PlanScreen({ user }: { user: User }) {
   return (
     <div>
       <div className="notice">
-        空いている週末に、ふたりの予定候補を表示します。気に入った候補は予定に追加できます。
+        日付未定の候補はプラン帳に保存できます。予定に入れるときだけ日程を決めます。
       </div>
-
-      <section className="research-section">
-        <div className="section-title">週末デート候補</div>
-        {weekendGroups.length === 0 && <div className="list-empty">次の週末候補を準備中です</div>}
-        {weekendGroups.length > 0 && (
-          <>
-            <div className="week-tabs" role="tablist" aria-label="週末を選択">
-              {weekendGroups.map((group) => (
-                <button
-                  key={group.key}
-                  type="button"
-                  role="tab"
-                  aria-selected={group.key === activeWeekend?.key}
-                  className={`week-tab${group.key === activeWeekend?.key ? ' active' : ''}`}
-                  onClick={() => setActiveWeekendKey(group.key)}
-                >
-                  <span>{group.tabLabel}</span>
-                  <small>{group.events.length}件</small>
-                </button>
-              ))}
-            </div>
-
-            {activeWeekend && (
-              <div className="weekend-panel">
-                <div className="research-meta">{activeWeekend.label} / 東京周辺</div>
-                <div className="research-summary">
-                  終了した週末は自動で外れます。カードをタップすると検索、場所名を押すと地図を開きます。
-                </div>
-                <div style={{ marginTop: 12 }}>
-                  {activeWeekend.events.map((item) => {
-                    const feedbackItem = weekendEventToFeedbackItemWithResearch(item);
-                    const imageUrl = item.imageUrl ?? monthlyImages[item.id] ?? null;
-                    return (
-                      <div
-                        className="ai-event-card tappable research-event-card"
-                        key={item.id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => openWebSearch(`${item.title} ${item.locationName}`)}
-                      >
-                        <div className="ai-event-img" style={imageUrl ? { backgroundImage: `url("${imageUrl}")` } : undefined}>
-                          {!imageUrl && <span className="ai-event-emoji">{item.emoji}</span>}
-                          <span className="ai-event-date">
-                            {item.dateLabel} / {item.area}
-                          </span>
-                        </div>
-                        <div className="ai-event-body">
-                          <div className="etitle">
-                            {item.emoji} {item.title}
-                          </div>
-                          <button
-                            type="button"
-                            className="eloc eloc-link"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              openInMaps(item.locationName);
-                            }}
-                          >
-                            {item.locationName}
-                          </button>
-                          <div className="eloc" style={{ whiteSpace: 'pre-wrap', marginTop: 4 }}>
-                            {item.summary}
-                          </div>
-                          <div className="event-chip-row">
-                            {item.tags.slice(0, 4).map((tag) => (
-                              <span key={tag} className="event-chip">{tag}</span>
-                            ))}
-                          </div>
-                          <div className="ai-event-info-hint">タップで検索</div>
-                          <div className="preference-row" aria-label="好みを記録">
-                            <button
-                              type="button"
-                              className={`pref-btn${feedbackByItemId[item.id]?.preference === 'like' ? ' active like' : ''}`}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                void setPreference(feedbackItem, 'like');
-                              }}
-                            >
-                              好き
-                            </button>
-                            <button
-                              type="button"
-                              className={`pref-btn${feedbackByItemId[item.id]?.preference === 'dislike' ? ' active dislike' : ''}`}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                void setPreference(feedbackItem, 'dislike');
-                              }}
-                            >
-                              微妙
-                            </button>
-                          </div>
-                          <button
-                            className="btn sm"
-                            style={{ marginTop: 8 }}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              pick(weekendEventToInitialWithResearch(item));
-                            }}
-                          >
-                            ＋ 予定に追加
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </>
-        )}
-      </section>
 
       <div className="section-title">ふたりのプラン帳</div>
       <div className="card plan-book" style={{ marginBottom: 18 }}>
         <p className="muted plan-book-lead">
-          日付を決める前の「やりたいこと」を保存できます。保存したものをタップすると日付を入れてカレンダーに追加できます。
+          日付を決める前の「やりたいこと」を保存できます。編集と予定追加は別操作です。
         </p>
+        {editingIdeaId && <div className="edit-mode-note">保存済みプランを編集中</div>}
         <div className="field">
           <label>やりたいこと / プラン名</label>
           <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="例: 水族館デート" />
@@ -266,9 +155,16 @@ export function PlanScreen({ user }: { user: User }) {
           <label>メモ</label>
           <textarea value={desc} onChange={(event) => setDesc(event.target.value)} placeholder="夜景の近くでディナーも、など" />
         </div>
-        <button className="btn" disabled={saving || (!title.trim() && !location.trim() && !desc.trim())} onClick={saveIdea}>
-          {saving ? '保存中...' : 'メモを保存'}
-        </button>
+        <div className="plan-form-actions">
+          <button className="btn" disabled={saving || (!title.trim() && !location.trim() && !desc.trim())} onClick={saveIdea}>
+            {saving ? '保存中...' : editingIdeaId ? '変更を保存' : 'メモを保存'}
+          </button>
+          {editingIdeaId && (
+            <button className="btn secondary" onClick={cancelEditIdea} disabled={saving}>
+              キャンセル
+            </button>
+          )}
+        </div>
 
         {ideas.length > 0 && (
           <>
@@ -278,9 +174,6 @@ export function PlanScreen({ user }: { user: User }) {
                 className="event-card idea-card"
                 key={idea.appEventId}
                 style={{ ['--evt-color' as string]: '#b39ddf' }}
-                role="button"
-                tabIndex={0}
-                onClick={() => openIdeaInCalendar(idea)}
               >
                 <div style={{ flex: 1 }}>
                   <div className="etitle">
@@ -304,46 +197,154 @@ export function PlanScreen({ user }: { user: User }) {
                       {idea.description}
                     </div>
                   )}
-                  <div className="idea-hint">タップして日付を入れる → カレンダーへ</div>
+                  <div className="idea-hint">編集するか、予定に入れる日だけ決められます</div>
                 </div>
-                <button
-                  className="btn sm secondary"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    void removeIdea(idea.appEventId);
-                  }}
-                >
-                  削除
-                </button>
+                <div className="idea-actions">
+                  <button className="btn sm secondary" onClick={() => startEditIdea(idea)}>
+                    編集
+                  </button>
+                  <button className="btn sm" onClick={() => openIdeaInCalendar(idea)}>
+                    予定に入れる
+                  </button>
+                  <button
+                    className="btn sm ghost"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      void removeIdea(idea.appEventId);
+                    }}
+                  >
+                    削除
+                  </button>
+                </div>
               </div>
             ))}
           </>
         )}
       </div>
 
-      <div className="section-title">空いてる週末のおすすめ</div>
-      {openWeekends.length === 0 ? (
-        <div className="list-empty">この先しばらく、週末はすでに予定が入っています</div>
-      ) : (
-        openWeekends.map((day) => (
-          <div key={day.toISOString()} style={{ marginBottom: 18 }}>
-            <div className="section-title">
-              {fmtYmd(day)}({WEEKDAY_LABELS[day.getDay()]})
-            </div>
-            {suggestPlans(day).map((plan) => (
-              <button key={plan.tier} className="plan-card" onClick={() => pick(planToInitial(day, plan))}>
-                <span className="plan-emoji">{plan.emoji}</span>
-                <span className="plan-body">
-                  <span className="plan-tier">{TIER_LABEL[plan.tier]}</span>
-                  <span className="plan-title">{plan.title}</span>
-                  <span className="plan-desc">{plan.description}</span>
-                </span>
-                <span className="plan-add">＋</span>
-              </button>
-            ))}
-          </div>
-        ))
-      )}
+      <section className="research-section">
+        <button
+          type="button"
+          className="section-toggle"
+          aria-expanded={weekendExpanded}
+          onClick={() => setWeekendExpanded((current) => !current)}
+        >
+          <span>♡ 週末デート候補</span>
+          <small>{weekendGroups.length > 0 ? `${weekendGroups.reduce((sum, group) => sum + group.events.length, 0)}件` : '準備中'}</small>
+        </button>
+
+        {weekendExpanded && (
+          <>
+            {weekendGroups.length === 0 && <div className="list-empty">次の週末候補を準備中です</div>}
+            {weekendGroups.length > 0 && (
+              <>
+                <div className="week-tabs" role="tablist" aria-label="週末を選択">
+                  {weekendGroups.map((group) => (
+                    <button
+                      key={group.key}
+                      type="button"
+                      role="tab"
+                      aria-selected={group.key === activeWeekend?.key}
+                      className={`week-tab${group.key === activeWeekend?.key ? ' active' : ''}`}
+                      onClick={() => setActiveWeekendKey(group.key)}
+                    >
+                      <span>{group.tabLabel}</span>
+                      <small>{group.events.length}件</small>
+                    </button>
+                  ))}
+                </div>
+
+                {activeWeekend && (
+                  <div className="weekend-panel">
+                    <div className="research-meta">{activeWeekend.label} / 東京周辺</div>
+                    <div className="research-summary">
+                      終了した週末は自動で外れます。カードをタップすると検索、場所名を押すと地図を開きます。
+                    </div>
+                    <div style={{ marginTop: 12 }}>
+                      {activeWeekend.events.map((item) => {
+                        const feedbackItem = weekendEventToFeedbackItemWithResearch(item);
+                        const imageUrl = item.imageUrl ?? monthlyImages[item.id] ?? null;
+                        return (
+                          <div
+                            className="ai-event-card tappable research-event-card"
+                            key={item.id}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => openWebSearch(`${item.title} ${item.locationName}`)}
+                          >
+                            <div className="ai-event-img" style={imageUrl ? { backgroundImage: `url("${imageUrl}")` } : undefined}>
+                              {!imageUrl && <span className="ai-event-emoji">{item.emoji}</span>}
+                              <span className="ai-event-date">
+                                {item.dateLabel} / {item.area}
+                              </span>
+                            </div>
+                            <div className="ai-event-body">
+                              <div className="etitle">
+                                {item.emoji} {item.title}
+                              </div>
+                              <button
+                                type="button"
+                                className="eloc eloc-link"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  openInMaps(item.locationName);
+                                }}
+                              >
+                                {item.locationName}
+                              </button>
+                              <div className="eloc" style={{ whiteSpace: 'pre-wrap', marginTop: 4 }}>
+                                {item.summary}
+                              </div>
+                              <div className="event-chip-row">
+                                {item.tags.slice(0, 4).map((tag) => (
+                                  <span key={tag} className="event-chip">{tag}</span>
+                                ))}
+                              </div>
+                              <div className="ai-event-info-hint">タップで検索</div>
+                              <div className="preference-row" aria-label="好みを記録">
+                                <button
+                                  type="button"
+                                  className={`pref-btn${feedbackByItemId[item.id]?.preference === 'like' ? ' active like' : ''}`}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    void setPreference(feedbackItem, 'like');
+                                  }}
+                                >
+                                  好き
+                                </button>
+                                <button
+                                  type="button"
+                                  className={`pref-btn${feedbackByItemId[item.id]?.preference === 'dislike' ? ' active dislike' : ''}`}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    void setPreference(feedbackItem, 'dislike');
+                                  }}
+                                >
+                                  微妙
+                                </button>
+                              </div>
+                              <button
+                                className="btn sm"
+                                style={{ marginTop: 8 }}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  pick(weekendEventToInitialWithResearch(item));
+                                }}
+                              >
+                                ＋ 予定に追加
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </>
+        )}
+      </section>
 
       {adding && (
         <EventModal

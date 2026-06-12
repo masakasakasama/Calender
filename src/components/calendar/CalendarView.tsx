@@ -94,17 +94,19 @@ export function CalendarView({
 
   return (
     <div>
-      <div className="cal-toolbar">
-        <button className="navbtn" onClick={() => move(-1)}>‹</button>
-        <div className="title">{title}</div>
-        <button className="navbtn" onClick={() => move(1)}>›</button>
-      </div>
-      <div className="seg" style={{ marginBottom: 14 }}>
-        {(['month', 'week', 'day'] as Mode[]).map((m) => (
-          <button key={m} className={mode === m ? 'active' : ''} onClick={() => setMode(m)}>
-            {m === 'month' ? '月' : m === 'week' ? '週' : '日'}
-          </button>
-        ))}
+      <div className="calendar-controls">
+        <div className="cal-toolbar">
+          <button className="navbtn" onClick={() => move(-1)}>‹</button>
+          <div className="title">{title}</div>
+          <button className="navbtn" onClick={() => move(1)}>›</button>
+        </div>
+        <div className="seg">
+          {(['month', 'week', 'day'] as Mode[]).map((m) => (
+            <button key={m} className={mode === m ? 'active' : ''} onClick={() => setMode(m)}>
+              {m === 'month' ? '月' : m === 'week' ? '週' : '日'}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div
