@@ -24,7 +24,7 @@ const APP_USER_CACHE_KEY = 'calender_last_signed_in_user';
 // =====================================================================
 function makeProvider(includeCalendarScopes = false): GoogleAuthProvider {
   const provider = new GoogleAuthProvider();
-  provider.setCustomParameters({ prompt: 'select_account' });
+  provider.setCustomParameters({ include_granted_scopes: 'true' });
   if (includeCalendarScopes) {
     provider.addScope('https://www.googleapis.com/auth/calendar.calendarlist.readonly');
     provider.addScope('https://www.googleapis.com/auth/calendar.events');
@@ -72,6 +72,7 @@ function appUserFromStoredAuth(stored: {
 export class FirebaseAuthService implements IAuthService {
   private current: User | null = this.restoreCachedUser();
   private googleAccessToken: string | null = this.restoreGoogleAccessToken();
+  private signingOut = false;
 
   constructor(private users: IUsersRepository) {}
 
@@ -112,12 +113,12 @@ export class FirebaseAuthService implements IAuthService {
   }
 
   private restoreGoogleAccessToken(): string | null {
-    if (typeof sessionStorage === 'undefined') return null;
-    const expiresAt = Number(sessionStorage.getItem(GCAL_TOKEN_EXPIRES_KEY) ?? '0');
-    const token = sessionStorage.getItem(GCAL_TOKEN_KEY);
+    if (typeof localStorage === 'undefined') return null;
+    const expiresAt = Number(localStorage.getItem(GCAL_TOKEN_EXPIRES_KEY) ?? '0');
+    const token = localStorage.getItem(GCAL_TOKEN_KEY);
     if (!token || !expiresAt || Date.now() >= expiresAt) {
-      sessionStorage.removeItem(GCAL_TOKEN_KEY);
-      sessionStorage.removeItem(GCAL_TOKEN_EXPIRES_KEY);
+      localStorage.removeItem(GCAL_TOKEN_KEY);
+      localStorage.removeItem(GCAL_TOKEN_EXPIRES_KEY);
       return null;
     }
     return token;
@@ -125,14 +126,14 @@ export class FirebaseAuthService implements IAuthService {
 
   private rememberGoogleAccessToken(token: string | null): void {
     this.googleAccessToken = token;
-    if (typeof sessionStorage === 'undefined') return;
+    if (typeof localStorage === 'undefined') return;
     if (!token) {
-      sessionStorage.removeItem(GCAL_TOKEN_KEY);
-      sessionStorage.removeItem(GCAL_TOKEN_EXPIRES_KEY);
+      localStorage.removeItem(GCAL_TOKEN_KEY);
+      localStorage.removeItem(GCAL_TOKEN_EXPIRES_KEY);
       return;
     }
-    sessionStorage.setItem(GCAL_TOKEN_KEY, token);
-    sessionStorage.setItem(GCAL_TOKEN_EXPIRES_KEY, String(Date.now() + 55 * 60 * 1000));
+    localStorage.setItem(GCAL_TOKEN_KEY, token);
+    localStorage.setItem(GCAL_TOKEN_EXPIRES_KEY, String(Date.now() + 55 * 60 * 1000));
   }
 
   getCurrentUser(): User | null {
@@ -148,14 +149,17 @@ export class FirebaseAuthService implements IAuthService {
         await this.users.upsert(user).catch(() => {});
         listener(user);
       } else {
-        // 本物のGoogleセッションが無いときは「ログイン画面」に戻す。
-        // 以前は匿名サインインでログイン済みに見せかけていたが、匿名トークンには
-        // メールが無く Firestore の権限が無い（=「権限がありません」/同期不能）。
-        // 必ず本人のGoogleでサインインさせることで、読み書き権限を確実にする。
         if (fb) await fbSignOut(firebaseAuth()).catch(() => {});
-        this.current = null;
-        this.rememberCachedUser(null);
-        listener(null);
+        if (this.signingOut) {
+          this.signingOut = false;
+          this.current = null;
+          this.rememberCachedUser(null);
+          listener(null);
+          return;
+        }
+        const cached = this.restoreCachedUser();
+        this.current = cached;
+        listener(cached);
       }
     });
   }
@@ -213,6 +217,7 @@ export class FirebaseAuthService implements IAuthService {
   }
 
   async signOut(): Promise<void> {
+    this.signingOut = true;
     this.current = null;
     this.rememberCachedUser(null);
     this.rememberGoogleAccessToken(null);

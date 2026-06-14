@@ -50,7 +50,7 @@ export function useRebeccaCalendars(currentUserId: string | null) {
         const ids = existing.filter((s) => s.syncEnabled).map((s) => s.googleCalendarId);
         setEvents(cachedSourceEvents(ids));
         setSyncMode(existing.length > 0 ? 'cached' : 'disconnected');
-        setNeedsConnect(existing.length === 0);
+        setNeedsConnect(false);
         setLoading(false);
         return;
       }
@@ -101,7 +101,7 @@ export function useRebeccaCalendars(currentUserId: string | null) {
         setSyncMode('live');
       } catch (e) {
         if (active) {
-          setNeedsConnect(true);
+          setNeedsConnect(false);
           setError(e instanceof Error ? e.message : 'Googleカレンダーを取得できませんでした');
         }
       } finally {

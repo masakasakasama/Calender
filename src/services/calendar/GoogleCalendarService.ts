@@ -39,7 +39,7 @@ const GOOGLE_EVENT_COLORS: Record<string, string> = {
 async function authed<T>(tokenProvider: TokenProvider, path: string): Promise<T> {
   const token = await tokenProvider();
   if (!token) {
-    throw new Error('Googleカレンダーを読むには、もう一度Googleでログインしてください');
+    throw new Error('Googleカレンダーの端末連携が切れています');
   }
   const res = await fetch(`${API}${path}`, {
     headers: { Authorization: `Bearer ${token}` },
