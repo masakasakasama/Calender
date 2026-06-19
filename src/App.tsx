@@ -6,6 +6,7 @@ import { useGoogleSharedCalendarSync } from '@/hooks/useGoogleSharedCalendarSync
 import { services } from '@/services/container';
 import { LoginScreen } from '@/screens/LoginScreen';
 import { SharedScreen } from '@/screens/SharedScreen';
+import { TimelineScreen } from '@/screens/TimelineScreen';
 import { RebeccaScreen } from '@/screens/RebeccaScreen';
 import { NotificationsScreen } from '@/screens/NotificationsScreen';
 import { PlanScreen } from '@/screens/PlanScreen';
@@ -14,7 +15,7 @@ import { UpdateBanner } from '@/components/pwa/UpdateBanner';
 import { InstallHint } from '@/components/pwa/InstallHint';
 import { CloudMascot } from '@/components/CloudMascot';
 
-type Tab = 'shared' | 'rebecca' | 'add' | 'plan' | 'notifications' | 'settings';
+type Tab = 'shared' | 'timeline' | 'rebecca' | 'add' | 'plan' | 'notifications' | 'settings';
 
 export default function App() {
   const { user, loading, signOut } = useAuth();
@@ -64,6 +65,7 @@ export default function App() {
   // 「通知」はヘッダーのベルに移動し、その枠を「プラン」に入れ替え。
   const tabs: { key: Tab; label: string; ico: string }[] = [
     { key: 'shared', label: '共有', ico: '🗓️' },
+    { key: 'timeline', label: '1日', ico: '🕒' },
     ...(isRebecca ? [{ key: 'rebecca' as Tab, label: 'レベッカ', ico: '🌸' }] : []),
     { key: 'add', label: '追加', ico: '＋' },
     { key: 'plan', label: 'プラン', ico: '💝' },
@@ -116,6 +118,7 @@ export default function App() {
         {activeTab === 'shared' && (
           <SharedScreen user={user} openAdd={openAdd} searchPulse={searchPulse} onAddHandled={() => setOpenAdd(false)} />
         )}
+        {activeTab === 'timeline' && <TimelineScreen user={user} />}
         {activeTab === 'rebecca' && isRebecca && <RebeccaScreen user={user} />}
         {activeTab === 'plan' && <PlanScreen user={user} />}
         {activeTab === 'notifications' && <NotificationsScreen />}

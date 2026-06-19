@@ -397,6 +397,63 @@ input, textarea, select { font-family: inherit; font-size: 16px; }
 .research-card:active { transform: scale(.98); }
 .research-sub { font-size: 10px; color: var(--text-soft); font-weight: 700; margin-top: 2px; }
 
+/* ---- 1日タイムライン（時間ごと） ---- */
+.timeline-screen { display: flex; flex-direction: column; }
+.tl-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; margin-bottom: 8px;
+}
+.tl-nav {
+  width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0;
+  background: var(--surface-2); border: 1px solid #fff; color: var(--text);
+  font-size: 24px; line-height: 1; font-weight: 700;
+}
+.tl-nav:active { transform: scale(.94); }
+.tl-date { text-align: center; }
+.tl-date-main { font-size: 18px; font-weight: 800; color: var(--text); }
+.tl-date-sub { font-size: 12px; color: var(--text-soft); }
+.tl-actions { display: flex; gap: 8px; justify-content: flex-end; margin-bottom: 8px; }
+
+.tl-allday {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;
+}
+.tl-allday-chip {
+  border-left: 4px solid var(--evt-color, #b39ddf);
+  background: var(--surface-2); border-radius: 10px; padding: 6px 10px;
+  font-size: 13px; font-weight: 700; color: var(--text); text-align: left;
+}
+
+.tl-scroll {
+  position: relative; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  background: var(--surface); border-radius: 16px; border: 1px solid #fff;
+  max-height: calc(100vh - 280px);
+}
+.tl-grid { position: relative; width: 100%; }
+
+.tl-hour {
+  position: absolute; left: 0; right: 0; display: block; text-align: left;
+  background: transparent; border: 0; padding: 0;
+}
+.tl-hour-label {
+  position: absolute; left: 8px; top: -7px; font-size: 11px; color: var(--text-soft);
+  background: var(--surface); padding: 0 2px;
+}
+.tl-hour-line { position: absolute; left: 56px; right: 6px; top: 0; border-top: 1px solid var(--line, #eee7f3); }
+
+.tl-now { position: absolute; left: 56px; right: 6px; height: 0; border-top: 2px solid #ff5d8f; z-index: 3; }
+.tl-now-dot { position: absolute; left: -5px; top: -5px; width: 8px; height: 8px; border-radius: 50%; background: #ff5d8f; }
+
+.tl-event {
+  position: absolute; z-index: 2; overflow: hidden; text-align: left;
+  background: color-mix(in srgb, var(--evt-color) 22%, #fff);
+  border-left: 4px solid var(--evt-color);
+  border-radius: 10px; padding: 4px 8px; color: var(--text);
+  display: flex; flex-direction: column; gap: 1px;
+}
+.tl-event:active { transform: scale(.98); }
+.tl-event-title { font-size: 12.5px; font-weight: 800; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tl-event-time { font-size: 10.5px; color: var(--text-soft); }
+
 /* ---- AI 今週のおすすめイベント（画像付きカード） ---- */
 .ai-event-card {
   background: var(--surface-2); border-radius: 16px; overflow: hidden;
