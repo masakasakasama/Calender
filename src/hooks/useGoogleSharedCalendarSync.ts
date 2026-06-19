@@ -5,6 +5,13 @@ import { services } from '@/services/container';
 import { firebaseFunctions } from '@/services/firebase/firebaseApp';
 import type { CalendarEvent, User } from '@/types';
 import { staleGoogleSharedEventIds } from '@/utils/googleSharedSync';
+import {
+  markSharedGoogleSyncError,
+  markSharedGoogleSyncOk,
+  markSharedGoogleSyncStarted,
+  SHARED_GOOGLE_SYNC_REQUEST_EVENT,
+  type SharedGoogleSyncResult,
+} from '@/utils/sharedGoogleSyncStatus';
 
 function googleSharedCalId(): string | null {
   return services.settingsRepo.getAppConfig().googleSharedCalendarId ?? APP_CONFIG.googleSharedCalendarId ?? null;
@@ -61,11 +68,14 @@ export function useGoogleSharedCalendarSync(user: User | null) {
       if (!googleCalendarId) return;
 
       running = true;
+      markSharedGoogleSyncStarted(googleCalendarId);
       try {
-        await httpsCallable(firebaseFunctions(), 'syncSharedGoogleCalendar')({});
+        const result = await httpsCallable<unknown, SharedGoogleSyncResult>(firebaseFunctions(), 'syncSharedGoogleCalendar')({});
+        markSharedGoogleSyncOk(result.data);
         running = false;
         return;
-      } catch {
+      } catch (error) {
+        markSharedGoogleSyncError(error);
         // Fall back to direct browser sync only if this device already has a Calendar token.
       }
 
@@ -77,18 +87,26 @@ export function useGoogleSharedCalendarSync(user: User | null) {
       try {
         const incoming = await services.calendar.listGoogleSharedEvents!(googleCalendarId);
         const localBeforeUpsert = services.eventsRepo.getAll();
+        const staleIds = staleGoogleSharedEventIds({
+          localEvents: localBeforeUpsert,
+          incomingEvents: incoming,
+          googleCalendarId,
+        });
         for (const ev of incoming) {
           const existing = localBeforeUpsert.find((local) => sameGoogleSharedEvent(local, ev));
           await services.eventsRepo.upsert(mergeGoogleSharedEvent(existing, ev, user.userId));
         }
-        for (const appEventId of staleGoogleSharedEventIds({
-          localEvents: localBeforeUpsert,
-          incomingEvents: incoming,
-          googleCalendarId,
-        })) {
+        for (const appEventId of staleIds) {
           await services.eventsRepo.softDelete(appEventId, user.userId);
         }
-      } catch {
+        markSharedGoogleSyncOk({
+          imported: incoming.length,
+          updated: 0,
+          deleted: staleIds.length,
+          calendarId: googleCalendarId,
+        });
+      } catch (error) {
+        markSharedGoogleSyncError(error);
         /* Leave the last Firestore snapshot in place and retry on the next sync trigger. */
       } finally {
         running = false;
@@ -105,12 +123,14 @@ export function useGoogleSharedCalendarSync(user: User | null) {
     window.addEventListener('focus', onVisible);
     window.addEventListener('online', onConnected);
     window.addEventListener('gcal-connected', onConnected);
+    window.addEventListener(SHARED_GOOGLE_SYNC_REQUEST_EVENT, onConnected);
     return () => {
       window.clearInterval(iv);
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('focus', onVisible);
       window.removeEventListener('online', onConnected);
       window.removeEventListener('gcal-connected', onConnected);
+      window.removeEventListener(SHARED_GOOGLE_SYNC_REQUEST_EVENT, onConnected);
     };
   }, [user]);
 }

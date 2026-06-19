@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CalendarEvent, ShareLink, User } from '@/types';
 import { APP_CONFIG } from '@/config/appConfig';
 import { useUpdate } from '@/hooks/useUpdate';
@@ -6,11 +6,25 @@ import { useSync } from '@/hooks/useSync';
 import { useNotifications } from '@/hooks/useNotifications';
 import { services } from '@/services/container';
 import { fmtYmdHm } from '@/utils/date';
+import {
+  readSharedGoogleSyncStatus,
+  requestSharedGoogleSync,
+  SHARED_GOOGLE_SYNC_STATUS_EVENT,
+  type SharedGoogleSyncStatus,
+} from '@/utils/sharedGoogleSyncStatus';
+
+function syncStatusLabel(status: SharedGoogleSyncStatus): string {
+  if (status.state === 'syncing') return '同期中';
+  if (status.state === 'ok') return '同期済み';
+  if (status.state === 'error') return '失敗';
+  return '未実行';
+}
 
 export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const { state, applyUpdate } = useUpdate();
   const { last, online } = useSync();
   const { permission, requestPermission } = useNotifications();
+  const [sharedGoogleStatus, setSharedGoogleStatus] = useState(readSharedGoogleSyncStatus);
 
   const config = services.settingsRepo.getAppConfig();
   const googleCalId = config.googleSharedCalendarId ?? APP_CONFIG.googleSharedCalendarId;
@@ -21,6 +35,15 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
     .sort()
     .pop();
   const backupInput = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    const onStatus = (event: Event) => {
+      const custom = event as CustomEvent<SharedGoogleSyncStatus>;
+      setSharedGoogleStatus(custom.detail ?? readSharedGoogleSyncStatus());
+    };
+    window.addEventListener(SHARED_GOOGLE_SYNC_STATUS_EVENT, onStatus);
+    return () => window.removeEventListener(SHARED_GOOGLE_SYNC_STATUS_EVENT, onStatus);
+  }, []);
 
   const exportBackup = () => {
     const payload = {
@@ -92,11 +115,41 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
             </div>
             <div className="set-row">
               <span>Google最終取得</span>
-              <span className="v">{lastGoogleSyncAt ? fmtYmdHm(new Date(lastGoogleSyncAt)) : '未取得'}</span>
+              <span className="v">
+                {sharedGoogleStatus.lastSyncedAt
+                  ? fmtYmdHm(new Date(sharedGoogleStatus.lastSyncedAt))
+                  : lastGoogleSyncAt
+                    ? fmtYmdHm(new Date(lastGoogleSyncAt))
+                    : '未取得'}
+              </span>
+            </div>
+            <div className="set-row">
+              <span>共有Google同期</span>
+              <span className="v">{syncStatusLabel(sharedGoogleStatus)}</span>
+            </div>
+            <div className="set-row">
+              <span>同期結果</span>
+              <span className="v">
+                {sharedGoogleStatus.imported === null && sharedGoogleStatus.updated === null && sharedGoogleStatus.deleted === null
+                  ? '—'
+                  : `取得${sharedGoogleStatus.imported ?? 0} / 更新${sharedGoogleStatus.updated ?? 0} / 削除${sharedGoogleStatus.deleted ?? 0}`}
+              </span>
             </div>
             <p className="muted" style={{ margin: '10px 0' }}>
               共有Googleカレンダーはサーバー側でFirestoreに同期します。この端末でGoogleカレンダー連携をやり直す必要はありません。
             </p>
+            {sharedGoogleStatus.lastError && (
+              <p className="login-error" style={{ margin: '10px 0' }}>
+                {sharedGoogleStatus.lastError}
+              </p>
+            )}
+            <button
+              className="btn secondary"
+              disabled={sharedGoogleStatus.state === 'syncing' || !googleCalId}
+              onClick={requestSharedGoogleSync}
+            >
+              共有Googleカレンダーを同期
+            </button>
           </div>
         </>
       )}
