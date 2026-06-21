@@ -2,6 +2,7 @@ import type { CalendarEvent, User } from '@/types';
 import { useRebeccaCalendars } from '@/hooks/useRebeccaCalendars';
 import { EventCard } from '@/components/calendar/EventCard';
 import { eventDisplayColor } from '@/utils/eventStyle';
+import { fmtYmdHm } from '@/utils/date';
 
 // レベッカ画面（レベッカ本人のみアクセス可）。
 // 既存Googleカレンダー一覧の表示/同期選択 → 予定一覧 → 共有。
@@ -37,7 +38,7 @@ export function RebeccaScreen({ user }: { user: User }) {
       {error && <div className="notice error">{error}</div>}
       <div className="notice">
         Google同期: {syncLabel}
-        {lastGoogleSyncAt ? ` / 最終取得 ${new Date(lastGoogleSyncAt).toLocaleString()}` : ' / まだ取得なし'}
+        {lastGoogleSyncAt ? ` / 最終取得 ${fmtYmdHm(new Date(lastGoogleSyncAt))}` : ' / まだ取得なし'}
       </div>
 
       <div className="section-title">既存Googleカレンダー（表示 / 同期）</div>
