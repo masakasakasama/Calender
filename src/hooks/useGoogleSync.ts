@@ -62,11 +62,11 @@ async function markSyncResult(settings: RebeccaCalendarSetting[], status: 'live'
   );
 }
 
-// Google Calendar -> shared calendar sync for the signed-in user.
-// Both partner and Rebecca use the same source calendar settings collection.
+// Partner Google Calendar -> shared calendar sync.
+// Rebecca does not need Google Calendar access for the partner's events to appear.
 export function useGoogleSync(user: User | null) {
   useEffect(() => {
-    if (!user || services.backendName !== 'firebase') return;
+    if (!user || user.role !== 'partner' || services.backendName !== 'firebase') return;
 
     let running = false;
     const run = async () => {
