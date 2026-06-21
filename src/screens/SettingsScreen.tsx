@@ -25,6 +25,11 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
   const { last, online } = useSync();
   const { permission, requestPermission } = useNotifications();
   const [sharedGoogleStatus, setSharedGoogleStatus] = useState(readSharedGoogleSyncStatus);
+  const [partnerGoogleConnecting, setPartnerGoogleConnecting] = useState(false);
+  const [partnerGoogleConnected, setPartnerGoogleConnected] = useState(
+    () => services.auth.isGoogleCalendarConnected?.() ?? false,
+  );
+  const [partnerGoogleError, setPartnerGoogleError] = useState<string | null>(null);
 
   const config = services.settingsRepo.getAppConfig();
   const googleCalId = config.googleSharedCalendarId ?? APP_CONFIG.googleSharedCalendarId;
@@ -35,6 +40,20 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
     .sort()
     .pop();
   const backupInput = useRef<HTMLInputElement | null>(null);
+
+  const connectPartnerGoogleCalendar = async () => {
+    setPartnerGoogleConnecting(true);
+    setPartnerGoogleError(null);
+    try {
+      const ok = (await services.auth.connectGoogleCalendar?.()) ?? false;
+      setPartnerGoogleConnected(ok);
+      if (!ok) setPartnerGoogleError('Google Calendar連携に失敗しました');
+    } catch (error) {
+      setPartnerGoogleError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setPartnerGoogleConnecting(false);
+    }
+  };
 
   useEffect(() => {
     const onStatus = (event: Event) => {
@@ -142,6 +161,22 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
               <p className="login-error" style={{ margin: '10px 0' }}>
                 {sharedGoogleStatus.lastError}
               </p>
+            )}
+            {user.role === 'partner' && (
+              <div style={{ margin: '12px 0' }}>
+                <div className="set-row">
+                  <span>あなたのGoogle予定</span>
+                  <span className="v">{partnerGoogleConnected ? '連携済み' : '未連携'}</span>
+                </div>
+                {partnerGoogleError && (
+                  <p className="login-error" style={{ margin: '10px 0' }}>
+                    {partnerGoogleError}
+                  </p>
+                )}
+                <button className="btn" disabled={partnerGoogleConnecting} onClick={connectPartnerGoogleCalendar}>
+                  {partnerGoogleConnecting ? 'Google連携中...' : 'あなたのGoogle予定を共有に入れる'}
+                </button>
+              </div>
             )}
             <button
               className="btn secondary"

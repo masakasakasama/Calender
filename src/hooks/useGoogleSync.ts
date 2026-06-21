@@ -72,7 +72,11 @@ export function useGoogleSync(user: User | null) {
     const run = async () => {
       if (running) return;
       if (!(services.auth.isGoogleCalendarConnected?.() ?? false)) return;
-      const sharedCalendarId = services.settingsRepo.getAppConfig().sharedCalendarId;
+      let sharedCalendarId = services.settingsRepo.getAppConfig().sharedCalendarId;
+      if (!sharedCalendarId) {
+        sharedCalendarId = await services.calendar.ensureSharedCalendar();
+        await services.settingsRepo.setSharedCalendarId(sharedCalendarId);
+      }
       if (!sharedCalendarId) return;
 
       running = true;
