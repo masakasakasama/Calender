@@ -33,7 +33,7 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
 
   const config = services.settingsRepo.getAppConfig();
   const googleCalId = config.googleSharedCalendarId ?? APP_CONFIG.googleSharedCalendarId;
-  const rebeccaSettings = services.settingsRepo.getRebeccaSettings();
+  const rebeccaSettings = services.settingsRepo.getRebeccaSettings().filter((setting) => setting.userId === user.userId);
   const lastGoogleSyncAt = rebeccaSettings
     .map((s) => s.lastSyncedAt)
     .filter(Boolean)
@@ -174,7 +174,7 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
                   </p>
                 )}
                 <button className="btn" disabled={partnerGoogleConnecting} onClick={connectPartnerGoogleCalendar}>
-                  {partnerGoogleConnecting ? 'Google連携中...' : 'あなたのGoogle予定を共有に入れる'}
+                  {partnerGoogleConnecting ? 'Google連携中...' : 'Googleの共有カレンダーだけ共有に入れる'}
                 </button>
               </div>
             )}

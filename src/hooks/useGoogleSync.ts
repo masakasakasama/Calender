@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import type { RebeccaCalendarSetting, User } from '@/types';
 import { services } from '@/services/container';
 
-const AUTO_ENABLE_PREFIX = 'google_calendar_auto_enabled';
+const PARTNER_SHARED_GOOGLE_CALENDAR_NAME = '共有のカレンダー';
 
 function settingsForUser(settings: RebeccaCalendarSetting[], userId: string): RebeccaCalendarSetting[] {
   return settings.filter((setting) => setting.userId === userId);
@@ -14,29 +14,21 @@ function sourceKey(calendarId: string | null | undefined, eventId: string | null
 
 async function ensureUserCalendarSettings(user: User): Promise<RebeccaCalendarSetting[]> {
   const existing = settingsForUser(services.settingsRepo.getRebeccaSettings(), user.userId);
-  const hasEnabledCalendar = existing.some((setting) => setting.syncEnabled);
-  if (hasEnabledCalendar) return existing;
-
   const calendars = await services.calendar.listRebeccaCalendars();
-  const autoTarget =
-    calendars.find((calendar) => calendar.primary) ??
-    calendars.find((calendar) => calendar.accessRole === 'owner' || calendar.accessRole === 'writer') ??
-    calendars[0];
-  if (!autoTarget) return existing;
+  const autoTarget = calendars.find((calendar) => calendar.calendarName.trim() === PARTNER_SHARED_GOOGLE_CALENDAR_NAME);
 
-  const autoEnableKey = `${AUTO_ENABLE_PREFIX}_${user.userId}`;
   const now = new Date().toISOString();
   for (const calendar of calendars) {
     const current = existing.find((setting) => setting.googleCalendarId === calendar.googleCalendarId);
-    const shouldEnable = calendar.googleCalendarId === autoTarget.googleCalendarId;
+    const shouldEnable = calendar.googleCalendarId === autoTarget?.googleCalendarId;
     await services.settingsRepo.upsertRebeccaSetting({
       userId: user.userId,
       googleCalendarId: calendar.googleCalendarId,
       calendarName: calendar.calendarName,
       calendarColor: calendar.calendarColor,
       accessRole: calendar.accessRole,
-      visibleInApp: current?.visibleInApp ?? shouldEnable,
-      syncEnabled: current?.syncEnabled ?? shouldEnable,
+      visibleInApp: shouldEnable,
+      syncEnabled: shouldEnable,
       lastSyncedAt: current?.lastSyncedAt ?? null,
       lastSyncStatus: current?.lastSyncStatus ?? null,
       lastSyncError: current?.lastSyncError ?? null,
@@ -44,7 +36,6 @@ async function ensureUserCalendarSettings(user: User): Promise<RebeccaCalendarSe
       updatedAt: now,
     });
   }
-  localStorage.setItem(autoEnableKey, '1');
   return settingsForUser(services.settingsRepo.getRebeccaSettings(), user.userId);
 }
 
@@ -100,7 +91,11 @@ export function useGoogleSync(user: User | null) {
         for (const link of allLinks) {
           if (link.status !== 'active') continue;
           if (link.sharedBy !== user.userId) continue;
-          if (!ids.includes(link.sourceGoogleCalendarId)) continue;
+          if (!ids.includes(link.sourceGoogleCalendarId)) {
+            await services.eventsRepo.softDelete(link.sharedGoogleEventId, user.userId).catch(() => {});
+            await services.shareLinksRepo.markRemoved(link.id).catch(() => {});
+            continue;
+          }
           const linkKey = sourceKey(link.sourceGoogleCalendarId, link.sourceGoogleEventId);
           if (linkKey && sourceKeys.has(linkKey)) continue;
           await services.eventsRepo.softDelete(link.sharedGoogleEventId, user.userId).catch(() => {});
