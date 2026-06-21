@@ -48,7 +48,7 @@ export class LocalSettingsRepository implements ISettingsRepository {
   async upsertRebeccaSetting(setting: RebeccaCalendarSetting): Promise<void> {
     const all = this.getRebeccaSettings();
     const now = new Date().toISOString();
-    const idx = all.findIndex((s) => s.googleCalendarId === setting.googleCalendarId);
+    const idx = all.findIndex((s) => s.userId === setting.userId && s.googleCalendarId === setting.googleCalendarId);
     const next = { ...setting, updatedAt: now };
     if (idx >= 0) all[idx] = next;
     else all.push({ ...next, createdAt: next.createdAt || now });

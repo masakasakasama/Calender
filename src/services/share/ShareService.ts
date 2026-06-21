@@ -17,9 +17,9 @@ export class ShareService {
     private notifications: INotificationService,
   ) {}
 
-  isShared(sourceGoogleEventId: string | null): boolean {
+  isShared(sourceGoogleEventId: string | null, sourceGoogleCalendarId?: string | null): boolean {
     if (!sourceGoogleEventId) return false;
-    return !!this.shareLinks.findActiveBySource(sourceGoogleEventId);
+    return !!this.shareLinks.findActiveBySource(sourceGoogleEventId, sourceGoogleCalendarId);
   }
 
   /** レベッカの予定を共有カレンダーへコピー（重複防止つき）。
@@ -32,15 +32,16 @@ export class ShareService {
   }): Promise<boolean> {
     const { sharedCalendarId, source, byUserId, silent } = params;
     const sourceEventId = source.sourceGoogleEventId ?? source.appEventId;
+    const sourceCalendarId = source.sourceGoogleCalendarId ?? source.googleCalendarId ?? '';
 
     // 重複作成防止: 既に active な share_link があれば何もしない。
-    if (this.shareLinks.findActiveBySource(sourceEventId)) return false;
+    if (this.shareLinks.findActiveBySource(sourceEventId, sourceCalendarId)) return false;
 
     const copy = await this.calendar.copyEventToShared({ sharedCalendarId, source, byUserId });
 
     const link: ShareLink = {
-      id: `link-${sourceEventId}`,
-      sourceGoogleCalendarId: source.sourceGoogleCalendarId ?? '',
+      id: `link-${sourceCalendarId}-${sourceEventId}`,
+      sourceGoogleCalendarId: sourceCalendarId,
       sourceGoogleEventId: sourceEventId,
       sharedGoogleCalendarId: sharedCalendarId,
       sharedGoogleEventId: copy.sharedGoogleEventId ?? copy.appEventId,

@@ -7,7 +7,7 @@ import type { ShareLink } from '@/types';
 export interface IShareLinksRepository {
   subscribe(listener: (links: ShareLink[]) => void): () => void;
   getAll(): ShareLink[];
-  findActiveBySource(sourceGoogleEventId: string): ShareLink | undefined;
+  findActiveBySource(sourceGoogleEventId: string, sourceGoogleCalendarId?: string | null): ShareLink | undefined;
   upsert(link: ShareLink): Promise<void>;
   markRemoved(id: string): Promise<void>;
 }

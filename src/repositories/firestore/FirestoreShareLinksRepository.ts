@@ -38,8 +38,13 @@ export class FirestoreShareLinksRepository implements IShareLinksRepository {
     return this.cache;
   }
 
-  findActiveBySource(sourceGoogleEventId: string): ShareLink | undefined {
-    return this.cache.find((l) => l.sourceGoogleEventId === sourceGoogleEventId && l.status === 'active');
+  findActiveBySource(sourceGoogleEventId: string, sourceGoogleCalendarId?: string | null): ShareLink | undefined {
+    return this.cache.find(
+      (l) =>
+        l.sourceGoogleEventId === sourceGoogleEventId &&
+        (!sourceGoogleCalendarId || l.sourceGoogleCalendarId === sourceGoogleCalendarId) &&
+        l.status === 'active',
+    );
   }
 
   async upsert(link: ShareLink): Promise<void> {

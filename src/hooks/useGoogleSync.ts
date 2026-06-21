@@ -1,78 +1,149 @@
 import { useEffect } from 'react';
-import type { User } from '@/types';
+import type { RebeccaCalendarSetting, User } from '@/types';
 import { services } from '@/services/container';
 
-// レベッカのGoogle予定 → 共有カレンダーへの自動同期。
-// 「レベッカ」タブを開かなくても、アプリにいる間（どのタブでも）走る。
-// 起動時・画面復帰時・定期（数分ごと）に実行する。レベッカ本人のみ。
+const AUTO_ENABLE_PREFIX = 'google_calendar_auto_enabled';
+
+function settingsForUser(settings: RebeccaCalendarSetting[], userId: string): RebeccaCalendarSetting[] {
+  return settings.filter((setting) => setting.userId === userId);
+}
+
+function sourceKey(calendarId: string | null | undefined, eventId: string | null | undefined): string | null {
+  return calendarId && eventId ? `${calendarId}:${eventId}` : null;
+}
+
+async function ensureUserCalendarSettings(user: User): Promise<RebeccaCalendarSetting[]> {
+  const existing = settingsForUser(services.settingsRepo.getRebeccaSettings(), user.userId);
+  const hasEnabledCalendar = existing.some((setting) => setting.syncEnabled);
+  if (hasEnabledCalendar) return existing;
+
+  const calendars = await services.calendar.listRebeccaCalendars();
+  const autoTarget =
+    calendars.find((calendar) => calendar.primary) ??
+    calendars.find((calendar) => calendar.accessRole === 'owner' || calendar.accessRole === 'writer') ??
+    calendars[0];
+  if (!autoTarget) return existing;
+
+  const autoEnableKey = `${AUTO_ENABLE_PREFIX}_${user.userId}`;
+  const now = new Date().toISOString();
+  for (const calendar of calendars) {
+    const current = existing.find((setting) => setting.googleCalendarId === calendar.googleCalendarId);
+    const shouldEnable = calendar.googleCalendarId === autoTarget.googleCalendarId;
+    await services.settingsRepo.upsertRebeccaSetting({
+      userId: user.userId,
+      googleCalendarId: calendar.googleCalendarId,
+      calendarName: calendar.calendarName,
+      calendarColor: calendar.calendarColor,
+      accessRole: calendar.accessRole,
+      visibleInApp: current?.visibleInApp ?? shouldEnable,
+      syncEnabled: current?.syncEnabled ?? shouldEnable,
+      lastSyncedAt: current?.lastSyncedAt ?? null,
+      lastSyncStatus: current?.lastSyncStatus ?? null,
+      lastSyncError: current?.lastSyncError ?? null,
+      createdAt: current?.createdAt ?? now,
+      updatedAt: now,
+    });
+  }
+  localStorage.setItem(autoEnableKey, '1');
+  return settingsForUser(services.settingsRepo.getRebeccaSettings(), user.userId);
+}
+
+async function markSyncResult(settings: RebeccaCalendarSetting[], status: 'live' | 'error', error: string | null = null) {
+  const syncedAt = new Date().toISOString();
+  await Promise.all(
+    settings.map((setting) =>
+      services.settingsRepo.upsertRebeccaSetting({
+        ...setting,
+        lastSyncedAt: status === 'live' ? syncedAt : setting.lastSyncedAt,
+        lastSyncStatus: status,
+        lastSyncError: error,
+      }),
+    ),
+  );
+}
+
+// Google Calendar -> shared calendar sync for the signed-in user.
+// Both partner and Rebecca use the same source calendar settings collection.
 export function useGoogleSync(user: User | null) {
   useEffect(() => {
-    if (!user || user.role !== 'rebecca' || services.backendName !== 'firebase') return;
+    if (!user || services.backendName !== 'firebase') return;
 
     let running = false;
     const run = async () => {
       if (running) return;
-      if (!(services.auth.isGoogleCalendarConnected?.() ?? false)) return; // 未連携時は何もしない
+      if (!(services.auth.isGoogleCalendarConnected?.() ?? false)) return;
       const sharedCalendarId = services.settingsRepo.getAppConfig().sharedCalendarId;
       if (!sharedCalendarId) return;
-      const ids = services.settingsRepo
-        .getRebeccaSettings()
-        .filter((s) => s.syncEnabled)
-        .map((s) => s.googleCalendarId);
-      if (ids.length === 0) return;
 
       running = true;
+      let syncSettings: RebeccaCalendarSetting[] = [];
       try {
+        syncSettings = await ensureUserCalendarSettings(user);
+        const enabledSettings = syncSettings.filter((setting) => setting.syncEnabled);
+        const ids = enabledSettings.map((setting) => setting.googleCalendarId);
+        if (ids.length === 0) return;
+
         const events = await services.calendar.listRebeccaEvents(ids);
-        const syncedAt = new Date().toISOString();
-        await Promise.all(
-          services.settingsRepo
-            .getRebeccaSettings()
-            .filter((s) => ids.includes(s.googleCalendarId))
-            .map((s) =>
-              services.settingsRepo.upsertRebeccaSetting({
-                ...s,
-                lastSyncedAt: syncedAt,
-                lastSyncStatus: 'live',
-                lastSyncError: null,
-              }),
-            ),
-        );
+        await markSyncResult(enabledSettings, 'live');
+
         const allLinks = services.shareLinksRepo.getAll();
-        const sourceIds = new Set(events.map((ev) => ev.sourceGoogleEventId ?? ev.appEventId));
+        const sourceKeys = new Set(
+          events
+            .map((event) => sourceKey(event.sourceGoogleCalendarId, event.sourceGoogleEventId ?? event.appEventId))
+            .filter((key): key is string => Boolean(key)),
+        );
+
         for (const link of allLinks) {
           if (link.status !== 'active') continue;
+          if (link.sharedBy !== user.userId) continue;
           if (!ids.includes(link.sourceGoogleCalendarId)) continue;
-          if (sourceIds.has(link.sourceGoogleEventId)) continue;
+          const linkKey = sourceKey(link.sourceGoogleCalendarId, link.sourceGoogleEventId);
+          if (linkKey && sourceKeys.has(linkKey)) continue;
           await services.eventsRepo.softDelete(link.sharedGoogleEventId, user.userId).catch(() => {});
           await services.shareLinksRepo.markRemoved(link.id).catch(() => {});
         }
-        for (const ev of events) {
-          await services.eventsRepo.upsert({ ...ev, updatedAt: new Date().toISOString() }).catch(() => ev);
-          const srcId = ev.sourceGoogleEventId ?? ev.appEventId;
-          const link = allLinks.find((l) => l.sourceGoogleEventId === srcId);
+
+        for (const event of events) {
+          const saved = await services.eventsRepo.upsert({ ...event, updatedAt: new Date().toISOString() }).catch(() => event);
+          const eventKey = sourceKey(saved.sourceGoogleCalendarId, saved.sourceGoogleEventId ?? saved.appEventId);
+          const link = allLinks.find(
+            (candidate) =>
+              candidate.status === 'active' &&
+              candidate.sharedBy === user.userId &&
+              eventKey === sourceKey(candidate.sourceGoogleCalendarId, candidate.sourceGoogleEventId),
+          );
           if (!link) {
-            await services.share.shareEvent({ sharedCalendarId, source: ev, byUserId: user.userId, silent: true });
-          } else if (link.status === 'active') {
+            await services.share.shareEvent({ sharedCalendarId, source: saved, byUserId: user.userId, silent: true });
+          } else {
             const copy = services.eventsRepo.getById(link.sharedGoogleEventId);
-            if (copy && (copy.color !== ev.color || copy.emoji !== ev.emoji || copy.title !== ev.title)) {
-              await services.share.refreshShared({ sharedCalendarId, source: ev, byUserId: user.userId });
+            if (
+              copy &&
+              (copy.title !== saved.title ||
+                copy.description !== saved.description ||
+                copy.location !== saved.location ||
+                copy.start !== saved.start ||
+                copy.end !== saved.end ||
+                copy.color !== saved.color ||
+                copy.emoji !== saved.emoji)
+            ) {
+              await services.share.refreshShared({ sharedCalendarId, source: saved, byUserId: user.userId });
             }
           }
         }
-      } catch {
-        /* ネットワーク等の失敗は無視して次回に任せる */
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (syncSettings.length > 0) await markSyncResult(syncSettings, 'error', message).catch(() => {});
       } finally {
         running = false;
       }
     };
 
-    void run(); // 起動時
-    const iv = window.setInterval(run, 2 * 60 * 1000); // 定期
+    void run();
+    const iv = window.setInterval(run, 2 * 60 * 1000);
     const onVisible = () => {
       if (document.visibilityState === 'visible') void run();
     };
-    const onConnected = () => void run(); // 連携直後に即同期
+    const onConnected = () => void run();
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', onVisible);
     window.addEventListener('online', onConnected);

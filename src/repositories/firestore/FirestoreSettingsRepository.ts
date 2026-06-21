@@ -93,10 +93,13 @@ export class FirestoreSettingsRepository implements ISettingsRepository {
 
   async upsertRebeccaSetting(setting: RebeccaCalendarSetting): Promise<void> {
     const next = { ...setting, updatedAt: new Date().toISOString() };
-    this.rebecca = [...this.rebecca.filter((s) => s.googleCalendarId !== next.googleCalendarId), next];
+    this.rebecca = [
+      ...this.rebecca.filter((s) => !(s.userId === next.userId && s.googleCalendarId === next.googleCalendarId)),
+      next,
+    ];
     localStore.set(REBECCA_CACHE_KEY, this.rebecca);
     await setDoc(
-      doc(firebaseDb(), REBECCA_COL, setting.googleCalendarId),
+      doc(firebaseDb(), REBECCA_COL, `${setting.userId}_${encodeURIComponent(setting.googleCalendarId)}`),
       next,
       { merge: true },
     );

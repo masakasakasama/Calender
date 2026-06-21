@@ -37,7 +37,9 @@ export function useRebeccaCalendars(currentUserId: string | null) {
     let active = true;
     (async () => {
       if (!calendarReady()) {
-        const existing = services.settingsRepo.getRebeccaSettings();
+        const existing = services.settingsRepo
+          .getRebeccaSettings()
+          .filter((s) => s.userId === (currentUserId ?? 'user-rebecca'));
         setSettings(existing);
         setCalendars(
           existing.map((s) => ({
@@ -61,7 +63,9 @@ export function useRebeccaCalendars(currentUserId: string | null) {
         if (!active) return;
         setCalendars(list);
         // 初回テストで空に見えないよう、メインカレンダーだけ自動で表示/同期ONにする。
-        const existing = services.settingsRepo.getRebeccaSettings();
+        const existing = services.settingsRepo
+          .getRebeccaSettings()
+          .filter((s) => s.userId === (currentUserId ?? 'user-rebecca'));
         const autoEnableDone = localStorage.getItem(AUTO_ENABLE_KEY) === '1';
         const hasEnabledCalendar = existing.some((s) => s.syncEnabled || s.visibleInApp);
         const autoTarget =
@@ -113,7 +117,13 @@ export function useRebeccaCalendars(currentUserId: string | null) {
     };
   }, [currentUserId, refreshKey]);
 
-  useEffect(() => services.settingsRepo.subscribeRebeccaSettings(setSettings), []);
+  useEffect(
+    () =>
+      services.settingsRepo.subscribeRebeccaSettings((next) => {
+        setSettings(next.filter((s) => s.userId === (currentUserId ?? 'user-rebecca')));
+      }),
+    [currentUserId],
+  );
   useEffect(() => services.shareLinksRepo.subscribe(setShareLinks), []);
 
   const syncIds = settings.filter((s) => s.syncEnabled).map((s) => s.googleCalendarId);
@@ -198,7 +208,12 @@ export function useRebeccaCalendars(currentUserId: string | null) {
 
   const isShared = useCallback(
     (ev: CalendarEvent) =>
-      shareLinks.some((l) => l.sourceGoogleEventId === (ev.sourceGoogleEventId ?? ev.appEventId) && l.status === 'active'),
+      shareLinks.some(
+        (l) =>
+          l.sourceGoogleCalendarId === (ev.sourceGoogleCalendarId ?? ev.googleCalendarId ?? '') &&
+          l.sourceGoogleEventId === (ev.sourceGoogleEventId ?? ev.appEventId) &&
+          l.status === 'active',
+      ),
     [shareLinks],
   );
 

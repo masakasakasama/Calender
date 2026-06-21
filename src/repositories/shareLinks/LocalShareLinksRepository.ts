@@ -20,8 +20,13 @@ export class LocalShareLinksRepository implements IShareLinksRepository {
     return this.read();
   }
 
-  findActiveBySource(sourceGoogleEventId: string): ShareLink | undefined {
-    return this.read().find((l) => l.sourceGoogleEventId === sourceGoogleEventId && l.status === 'active');
+  findActiveBySource(sourceGoogleEventId: string, sourceGoogleCalendarId?: string | null): ShareLink | undefined {
+    return this.read().find(
+      (l) =>
+        l.sourceGoogleEventId === sourceGoogleEventId &&
+        (!sourceGoogleCalendarId || l.sourceGoogleCalendarId === sourceGoogleCalendarId) &&
+        l.status === 'active',
+    );
   }
 
   async upsert(link: ShareLink): Promise<void> {
