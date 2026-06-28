@@ -166,15 +166,18 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
               <div style={{ margin: '12px 0' }}>
                 <div className="set-row">
                   <span>あなたのGoogle予定</span>
-                  <span className="v">{partnerGoogleConnected ? '連携済み' : '未連携'}</span>
+                  <span className="v">{partnerGoogleConnected ? '連携済み（自動同期中）' : '未連携'}</span>
                 </div>
+                <p className="muted" style={{ margin: '10px 0' }}>
+                  連携すると、あなたのGoogleカレンダー（個人）の予定がふたりのカレンダーに自動で取り込まれます。Googleで追加・削除すると数分以内に反映されます。
+                </p>
                 {partnerGoogleError && (
                   <p className="login-error" style={{ margin: '10px 0' }}>
                     {partnerGoogleError}
                   </p>
                 )}
                 <button className="btn" disabled={partnerGoogleConnecting} onClick={connectPartnerGoogleCalendar}>
-                  {partnerGoogleConnecting ? 'Google連携中...' : 'Googleの共有カレンダーだけ共有に入れる'}
+                  {partnerGoogleConnecting ? 'Google連携中...' : 'あなたのGoogleカレンダーを同期する'}
                 </button>
               </div>
             )}

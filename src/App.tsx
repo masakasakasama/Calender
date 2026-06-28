@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useGoogleSync } from '@/hooks/useGoogleSync';
+import { usePartnerGoogleSync } from '@/hooks/usePartnerGoogleSync';
 import { useGoogleSharedCalendarSync } from '@/hooks/useGoogleSharedCalendarSync';
 import { services } from '@/services/container';
 import { LoginScreen } from '@/screens/LoginScreen';
@@ -25,6 +26,8 @@ export default function App() {
   const { unreadCount } = useNotifications();
   // レベッカのGoogle予定を自動同期（タブを開かなくても動く）。
   useGoogleSync(user);
+  // 彼氏側：自分のGoogleカレンダー(primary)の予定も共有として取り込む。
+  usePartnerGoogleSync(user);
   useGoogleSharedCalendarSync(user);
 
   const [cloudError, setCloudError] = useState<string | null>(null);
