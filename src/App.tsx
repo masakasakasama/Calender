@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useGoogleSync } from '@/hooks/useGoogleSync';
-import { usePartnerGoogleSync } from '@/hooks/usePartnerGoogleSync';
+import { usePurgePersonalImports } from '@/hooks/usePurgePersonalImports';
 import { useGoogleSharedCalendarSync } from '@/hooks/useGoogleSharedCalendarSync';
 import { services } from '@/services/container';
 import { LoginScreen } from '@/screens/LoginScreen';
@@ -27,7 +27,8 @@ export default function App() {
   // レベッカのGoogle予定を自動同期（タブを開かなくても動く）。
   useGoogleSync(user);
   // 彼氏側：自分のGoogleカレンダー(primary)の予定も共有として取り込む。
-  usePartnerGoogleSync(user);
+  // 個人カレンダーは取り込まない。過去に取り込まれた個人予定は掃除する。
+  usePurgePersonalImports(user);
   useGoogleSharedCalendarSync(user);
 
   const [cloudError, setCloudError] = useState<string | null>(null);
