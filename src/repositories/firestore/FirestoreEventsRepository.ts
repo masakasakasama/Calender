@@ -142,6 +142,26 @@ export class FirestoreEventsRepository implements IEventsRepository {
     return this.cache.find((e) => e.appEventId === appEventId);
   }
 
+  /** deletedAt を含む全予定（復旧用）。 */
+  getAllRaw(): CalendarEvent[] {
+    return this.cache;
+  }
+
+  /** 論理削除の取り消し。deletedAt を外して再表示・再同期する。 */
+  async restore(appEventId: string, byUserId: string): Promise<void> {
+    const now = new Date().toISOString();
+    this.cache = this.cache.map((e) =>
+      e.appEventId === appEventId ? { ...e, deletedAt: null, updatedAt: now, updatedBy: byUserId } : e,
+    );
+    localStore.set(CACHE_KEY, this.cache);
+    this.emit();
+    await setDoc(
+      doc(firebaseDb(), COL, appEventId),
+      { deletedAt: null, updatedAt: now, updatedBy: byUserId, _serverUpdatedAt: serverTimestamp() },
+      { merge: true },
+    );
+  }
+
   async upsert(event: CalendarEvent): Promise<CalendarEvent> {
     const next = { ...event, updatedAt: new Date().toISOString() };
     this.cache = [...this.cache.filter((e) => e.appEventId !== next.appEventId), next];
