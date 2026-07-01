@@ -51,11 +51,12 @@ export function DeletedEventsSection({ user }: { user: User }) {
 
   const todayKey = tokyoDay(new Date().toISOString());
   const deletedToday = items.filter((e) => e.deletedAt && tokyoDay(e.deletedAt) === todayKey);
+  const deletedEarlier = items.filter((e) => !e.deletedAt || tokyoDay(e.deletedAt) !== todayKey);
 
-  const restoreToday = async () => {
+  const restoreMany = async (list: CalendarEvent[]) => {
     setBusy(true);
     try {
-      for (const e of deletedToday) {
+      for (const e of list) {
         await services.eventsRepo.restore?.(e.appEventId, user.userId).catch(() => {});
       }
       setItems(deletedList());
@@ -63,6 +64,20 @@ export function DeletedEventsSection({ user }: { user: User }) {
       setBusy(false);
     }
   };
+
+  const renderItem = (e: CalendarEvent) => (
+    <div className="event-card" key={e.appEventId} style={{ ['--evt-color' as string]: e.color ?? '#b39ddf' }}>
+      <div style={{ flex: 1 }}>
+        <div className="etitle">{e.emoji ? `${e.emoji} ` : ''}{e.title || '(無題)'}</div>
+        <div className="eloc">{e.allDay ? fmtAllDayRange(e.start, e.end) : fmtDateTimeRange(e.start, e.end)}</div>
+        <div className="eloc muted" style={{ fontSize: 11 }}>
+          削除: {e.deletedAt ? fmtYmdHm(new Date(e.deletedAt)) : '—'}
+          {e.calendarType === 'rebecca_source' ? '・レベッカ' : ''}
+        </div>
+      </div>
+      <button className="btn sm" disabled={busy} onClick={() => restore(e.appEventId)}>復元</button>
+    </div>
+  );
 
   return (
     <>
@@ -72,28 +87,33 @@ export function DeletedEventsSection({ user }: { user: User }) {
           <p className="muted">削除された予定はありません。</p>
         ) : (
           <>
-            <p className="muted" style={{ marginBottom: 10 }}>
-              消えた予定の一覧です。<strong>いつ消えたか</strong>を見て、戻したいものだけ復元してください
-              （「今日」消えたものは不具合の可能性が高いです）。
-            </p>
-            {deletedToday.length > 0 && (
-              <button className="btn" disabled={busy} onClick={restoreToday} style={{ marginBottom: 12 }}>
-                今日消えた{deletedToday.length}件をまとめて復元
-              </button>
+            {/* 今日消えた分＝不具合の可能性が高い */}
+            <div className="muted" style={{ fontWeight: 800, marginBottom: 8 }}>
+              🐞 今日消えた（不具合の可能性・{deletedToday.length}）
+            </div>
+            {deletedToday.length === 0 ? (
+              <p className="muted" style={{ marginBottom: 12 }}>なし</p>
+            ) : (
+              <>
+                <button className="btn" disabled={busy} onClick={() => restoreMany(deletedToday)} style={{ marginBottom: 10 }}>
+                  今日消えた{deletedToday.length}件をまとめて復元
+                </button>
+                {deletedToday.map(renderItem)}
+              </>
             )}
-            {items.map((e) => (
-              <div className="event-card" key={e.appEventId} style={{ ['--evt-color' as string]: e.color ?? '#b39ddf' }}>
-                <div style={{ flex: 1 }}>
-                  <div className="etitle">{e.emoji ? `${e.emoji} ` : ''}{e.title || '(無題)'}</div>
-                  <div className="eloc">{e.allDay ? fmtAllDayRange(e.start, e.end) : fmtDateTimeRange(e.start, e.end)}</div>
-                  <div className="eloc muted" style={{ fontSize: 11 }}>
-                    削除: {e.deletedAt ? fmtYmdHm(new Date(e.deletedAt)) : '—'}
-                    {e.calendarType === 'rebecca_source' ? '・レベッカ' : ''}
-                  </div>
-                </div>
-                <button className="btn sm" disabled={busy} onClick={() => restore(e.appEventId)}>復元</button>
-              </div>
-            ))}
+
+            {/* それ以前＝意図的に消した可能性が高い */}
+            <div className="muted" style={{ fontWeight: 800, margin: '16px 0 8px' }}>
+              🗑 それ以前に消えた（意図的の可能性・{deletedEarlier.length}）
+            </div>
+            <p className="muted" style={{ fontSize: 11, marginBottom: 8 }}>
+              これらは彼女や君が意図的に消した可能性が高いです。必要なものだけ個別に復元してください。
+            </p>
+            {deletedEarlier.length === 0 ? (
+              <p className="muted">なし</p>
+            ) : (
+              deletedEarlier.map(renderItem)
+            )}
           </>
         )}
       </div>
