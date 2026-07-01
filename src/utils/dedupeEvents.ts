@@ -70,12 +70,10 @@ function hasGoogleLineage(event: CalendarEvent): boolean {
 export function isLikelySyncDuplicate(a: CalendarEvent, b: CalendarEvent): boolean {
   const sameTitleAndDay = fuzzySharedKey(a) === fuzzySharedKey(b);
   if (!sameTitleAndDay) return false;
-  if (!hasGoogleLineage(a) || !hasGoogleLineage(b)) return false;
-  if (a.sourceGoogleEventId && b.googleEventId) return true;
-  if (b.sourceGoogleEventId && a.googleEventId) return true;
-  if (a.sourceGoogleEventId && b.createdBy === 'google-shared') return true;
-  if (b.sourceGoogleEventId && a.createdBy === 'google-shared') return true;
-  return false;
+  // 同じタイトル・同じ日で、両方とも Google 由来なら、取り込み経路違いの
+  // 重複（サーバー同期 / ブラウザ同期 / コピー元→共有 など）とみなす。
+  // ※アプリ内で手入力した予定（Google由来でない）は重複扱いしない＝両方残す。
+  return hasGoogleLineage(a) && hasGoogleLineage(b);
 }
 
 export function dedupeSharedEvents(events: CalendarEvent[]): CalendarEvent[] {

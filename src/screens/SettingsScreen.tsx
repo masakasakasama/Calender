@@ -5,6 +5,7 @@ import { useUpdate } from '@/hooks/useUpdate';
 import { useSync } from '@/hooks/useSync';
 import { useNotifications } from '@/hooks/useNotifications';
 import { services } from '@/services/container';
+import { DeletedEventsSection } from '@/components/DeletedEventsSection';
 import { fmtYmdHm } from '@/utils/date';
 import {
   readSharedGoogleSyncStatus,
@@ -153,6 +154,8 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
           </div>
         </>
       )}
+
+      <DeletedEventsSection user={user} />
 
       <div className="section-title">同期</div>
       <div className="card" style={{ marginBottom: 16 }}>

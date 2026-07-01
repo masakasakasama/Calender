@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useGoogleSync } from '@/hooks/useGoogleSync';
-import { useRestoreDeletedImports } from '@/hooks/useRestoreDeletedImports';
 import { useGoogleSharedCalendarSync } from '@/hooks/useGoogleSharedCalendarSync';
 import { services } from '@/services/container';
 import { LoginScreen } from '@/screens/LoginScreen';
@@ -26,8 +25,6 @@ export default function App() {
   const { unreadCount } = useNotifications();
   // レベッカのGoogle予定を自動同期（タブを開かなくても動く）。
   useGoogleSync(user);
-  // 掃除バグで誤って論理削除した「Google由来の共有/レベッカ予定」を復旧する。
-  useRestoreDeletedImports(user);
   useGoogleSharedCalendarSync(user);
 
   const [cloudError, setCloudError] = useState<string | null>(null);
