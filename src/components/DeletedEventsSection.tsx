@@ -1,16 +1,25 @@
 import { useEffect, useState } from 'react';
 import type { CalendarEvent, User } from '@/types';
 import { services } from '@/services/container';
+import { APP_CONFIG } from '@/config/appConfig';
 import { fmtDateTimeRange, fmtAllDayRange, fmtYmdHm } from '@/utils/date';
+
+// 本人(彼氏)の“個人”Googleカレンダー由来か？（＝要らないゴミ。復元候補に出さない）
+function isPartnerPersonalImport(e: CalendarEvent): boolean {
+  const cal = (e.sharedGoogleCalendarId ?? e.googleCalendarId ?? e.sourceGoogleCalendarId ?? '').toLowerCase();
+  return cal === APP_CONFIG.partnerEmail.toLowerCase();
+}
 
 // 削除済み（論理削除）予定の一覧と復元。
 //  - バグで消えた分と、本人/相手が意図的に消した分は同じソフト削除なので区別できない。
 //    そこで「いつ消えたか」を出し、ユーザーが見て選んで復元できるようにする。
 //  - 削除は行わない（復元のみ）。
+//  - 本人の個人カレンダー由来のゴミは一覧に出さない。
 function deletedList(): CalendarEvent[] {
   const all = services.eventsRepo.getAllRaw?.() ?? [];
   return all
     .filter((e) => e.deletedAt && (e.calendarType === 'shared' || e.calendarType === 'rebecca_source'))
+    .filter((e) => !isPartnerPersonalImport(e))
     .sort((a, b) => (b.deletedAt ?? '').localeCompare(a.deletedAt ?? ''));
 }
 
