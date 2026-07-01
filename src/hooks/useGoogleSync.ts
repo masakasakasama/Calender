@@ -1,8 +1,17 @@
 import { useEffect } from 'react';
 import type { RebeccaCalendarSetting, User } from '@/types';
 import { services } from '@/services/container';
+import { APP_CONFIG } from '@/config/appConfig';
 
-const PARTNER_SHARED_GOOGLE_CALENDAR_NAME = '共有のカレンダー';
+// 同期対象は「専用の共有カレンダー(aafa…@group)」だけ。カレンダー名ではなく
+// ID で厳密に判定する（名前一致や primary だと個人カレンダーが紛れ込むため）。
+function sharedCalendarIdLower(): string {
+  return (
+    services.settingsRepo.getAppConfig().googleSharedCalendarId ??
+    APP_CONFIG.googleSharedCalendarId ??
+    ''
+  ).toLowerCase();
+}
 
 function settingsForUser(settings: RebeccaCalendarSetting[], userId: string): RebeccaCalendarSetting[] {
   return settings.filter((setting) => setting.userId === userId);
@@ -15,12 +24,13 @@ function sourceKey(calendarId: string | null | undefined, eventId: string | null
 async function ensureUserCalendarSettings(user: User): Promise<RebeccaCalendarSetting[]> {
   const existing = settingsForUser(services.settingsRepo.getRebeccaSettings(), user.userId);
   const calendars = await services.calendar.listRebeccaCalendars();
-  const autoTarget = calendars.find((calendar) => calendar.calendarName.trim() === PARTNER_SHARED_GOOGLE_CALENDAR_NAME);
+  const sharedId = sharedCalendarIdLower();
 
   const now = new Date().toISOString();
   for (const calendar of calendars) {
     const current = existing.find((setting) => setting.googleCalendarId === calendar.googleCalendarId);
-    const shouldEnable = calendar.googleCalendarId === autoTarget?.googleCalendarId;
+    // 専用の共有カレンダー(ID一致)だけ同期対象にする。個人カレンダーは絶対に有効化しない。
+    const shouldEnable = Boolean(sharedId) && calendar.googleCalendarId.toLowerCase() === sharedId;
     await services.settingsRepo.upsertRebeccaSetting({
       userId: user.userId,
       googleCalendarId: calendar.googleCalendarId,
