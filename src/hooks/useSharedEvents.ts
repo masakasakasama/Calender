@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import type { CalendarEvent, EventVisibility } from '@/types';
 import { services } from '@/services/container';
 import { APP_CONFIG } from '@/config/appConfig';
 import { newId } from '@/utils/id';
-import { dedupeSharedEvents, hiddenSharedDuplicateIds } from '@/utils/dedupeEvents';
-import { deletedGoogleTombstoneIds } from '@/utils/deletedEventTombstones';
+import { dedupeSharedEvents } from '@/utils/dedupeEvents';
 
 // 共有予定の書き込み先Googleカレンダー（Firestore設定 > env の順で解決）。
 function googleSharedCalId(): string | null {
@@ -24,7 +23,6 @@ function shiftRecurringDate(iso: string, frequency: string, step: number): strin
 // 相手の "自分だけ" は表示しない（共有予定だけが相手に見える）。
 export function useSharedEvents(currentUserId: string | null) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const dedupeCleanup = useRef(new Set<string>());
 
   useEffect(() => {
     const unsub = services.eventsRepo.subscribe((all) => {
@@ -33,15 +31,8 @@ export function useSharedEvents(currentUserId: string | null) {
             e.calendarType === 'shared' &&
             (e.visibility === 'shared' || (e.visibility === 'private' && e.createdBy === currentUserId)),
         );
+      // 重複は「表示上だけ」隠す。DBからは自動削除しない（誤削除・復元巻き戻しの防止）。
       setEvents(dedupeSharedEvents(sharedVisible));
-      const cleanupIds = new Set([...hiddenSharedDuplicateIds(sharedVisible), ...deletedGoogleTombstoneIds(sharedVisible)]);
-      for (const appEventId of cleanupIds) {
-        if (dedupeCleanup.current.has(appEventId)) continue;
-        dedupeCleanup.current.add(appEventId);
-        void services.eventsRepo.softDelete(appEventId, currentUserId ?? 'system-dedupe').catch(() => {
-          dedupeCleanup.current.delete(appEventId);
-        });
-      }
       for (const e of all) {
         if (e.calendarType === 'shared') services.notifications.scheduleEventReminder(e);
       }

@@ -4,7 +4,6 @@ import { APP_CONFIG } from '@/config/appConfig';
 import { services } from '@/services/container';
 import { firebaseFunctions } from '@/services/firebase/firebaseApp';
 import type { CalendarEvent, User } from '@/types';
-import { staleGoogleSharedEventIds } from '@/utils/googleSharedSync';
 import {
   markSharedGoogleSyncError,
   markSharedGoogleSyncOk,
@@ -87,22 +86,16 @@ export function useGoogleSharedCalendarSync(user: User | null) {
       try {
         const incoming = await services.calendar.listGoogleSharedEvents!(googleCalendarId);
         const localBeforeUpsert = services.eventsRepo.getAll();
-        const staleIds = staleGoogleSharedEventIds({
-          localEvents: localBeforeUpsert,
-          incomingEvents: incoming,
-          googleCalendarId,
-        });
+        // 取り込みのみ。ここでの自動削除（stale掃除）は撤去した。
+        // 共有カレンダーに載っていない予定を消してしまい、復元がすぐ巻き戻る原因だったため。
         for (const ev of incoming) {
           const existing = localBeforeUpsert.find((local) => sameGoogleSharedEvent(local, ev));
           await services.eventsRepo.upsert(mergeGoogleSharedEvent(existing, ev, user.userId));
         }
-        for (const appEventId of staleIds) {
-          await services.eventsRepo.softDelete(appEventId, user.userId);
-        }
         markSharedGoogleSyncOk({
           imported: incoming.length,
           updated: 0,
-          deleted: staleIds.length,
+          deleted: 0,
           calendarId: googleCalendarId,
         });
       } catch (error) {

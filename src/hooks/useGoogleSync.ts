@@ -92,25 +92,9 @@ export function useGoogleSync(user: User | null) {
         await markSyncResult(enabledSettings, 'live');
 
         const allLinks = services.shareLinksRepo.getAll();
-        const sourceKeys = new Set(
-          events
-            .map((event) => sourceKey(event.sourceGoogleCalendarId, event.sourceGoogleEventId ?? event.appEventId))
-            .filter((key): key is string => Boolean(key)),
-        );
-
-        for (const link of allLinks) {
-          if (link.status !== 'active') continue;
-          if (link.sharedBy !== user.userId) continue;
-          if (!ids.includes(link.sourceGoogleCalendarId)) {
-            await services.eventsRepo.softDelete(link.sharedGoogleEventId, user.userId).catch(() => {});
-            await services.shareLinksRepo.markRemoved(link.id).catch(() => {});
-            continue;
-          }
-          const linkKey = sourceKey(link.sourceGoogleCalendarId, link.sourceGoogleEventId);
-          if (linkKey && sourceKeys.has(linkKey)) continue;
-          await services.eventsRepo.softDelete(link.sharedGoogleEventId, user.userId).catch(() => {});
-          await services.shareLinksRepo.markRemoved(link.id).catch(() => {});
-        }
+        // 注意: 「同期対象外になった共有リンクを自動削除」する処理は撤去した。
+        // 過去に共有した予定（相手がGoogleを使わなくなった等）まで消してしまい、
+        // 復元してもすぐ消える不具合の原因だったため。削除は明示操作のときだけ。
 
         for (const event of events) {
           const saved = await services.eventsRepo.upsert({ ...event, updatedAt: new Date().toISOString() }).catch(() => event);
