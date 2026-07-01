@@ -34,7 +34,8 @@ function restoredTodayList(): CalendarEvent[] {
     .filter(hasGoogleLineage)
     .filter((e) => !isPartnerPersonalImport(e))
     .filter((e) => tokyoDay(e.updatedAt) === today)
-    .sort((a, b) => a.start.localeCompare(b.start));
+    // 復元(updatedAt)が新しい順。同時刻に固まっていれば＝一括復元＝バグ由来の目安。
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
 export function RestoredTodaySection({ user }: { user: User }) {
@@ -59,14 +60,23 @@ export function RestoredTodaySection({ user }: { user: User }) {
     }
   };
 
+  const restoreTimes = items.map((e) => e.updatedAt).sort();
+  const span =
+    restoreTimes.length > 0
+      ? `${fmtYmdHm(new Date(restoreTimes[0]))} 〜 ${fmtYmdHm(new Date(restoreTimes[restoreTimes.length - 1]))}`
+      : '—';
+
   return (
     <>
-      <div className="section-title">最近もどってきた予定（要確認・{items.length}）</div>
+      <div className="section-title">戻ってきた予定（要確認・{items.length}）</div>
       <div className="card" style={{ marginBottom: 16 }}>
-        <p className="muted" style={{ marginBottom: 10 }}>
-          今日「消えて→戻ってきた」予定です。この中に<strong>彼女が意図的に消していた予定</strong>が
-          混ざっている可能性があります。要らないものは「消す」でもう一度消してください
-          （今後は自動で復元されません）。
+        <p className="muted" style={{ marginBottom: 6 }}>
+          復元された時刻: <strong>{span}</strong>
+        </p>
+        <p className="muted" style={{ marginBottom: 10, fontSize: 12 }}>
+          ⚠️ 「消された時刻」は復元時に上書きされて残っていないため表示できません（予測もできません）。
+          この中に<strong>彼女が意図的に消していた予定</strong>が混ざっている可能性があります。
+          要らないものは「消す」でもう一度削除してください（今後は自動で復元されません）。
         </p>
         {items.map((e) => (
           <div className="event-card" key={e.appEventId} style={{ ['--evt-color' as string]: e.color ?? '#b39ddf' }}>
