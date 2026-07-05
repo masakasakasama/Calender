@@ -69,6 +69,18 @@ export function EventModal({
 
   const set = (k: keyof EventFormValue, val: string | number | boolean | EventRecurrence | null) => setV((s) => ({ ...s, [k]: val }));
 
+  // 開始を変えたら、終了も同じ長さぶん一緒に動かす（＝終了日は自動で開始日に追従）。
+  // 例: 5年後に開始日を変えると終了日も5年後になる。終了が開始より前になったら1時間後に補正。
+  const onStartChange = (iso: string) => {
+    setV((s) => {
+      const oldStart = new Date(s.start).getTime();
+      const newStart = new Date(iso).getTime();
+      let durationMs = new Date(s.end).getTime() - oldStart;
+      if (!(durationMs > 0)) durationMs = 60 * 60 * 1000;
+      return { ...s, start: iso, end: new Date(newStart + durationMs).toISOString() };
+    });
+  };
+
   const onTitleChange = (title: string) => {
     setV((s) => ({
       ...s,
@@ -205,7 +217,7 @@ export function EventModal({
 
             <div className="field">
               <label>{v.allDay ? '開始日' : '開始'}</label>
-              <DateTimeField value={v.start} onChange={(iso) => set('start', iso)} dateOnly={v.allDay} />
+              <DateTimeField value={v.start} onChange={onStartChange} dateOnly={v.allDay} />
             </div>
             <div className="field">
               <label>{v.allDay ? '終了日' : '終了'}</label>

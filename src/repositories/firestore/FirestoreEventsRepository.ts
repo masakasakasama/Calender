@@ -64,7 +64,14 @@ export class FirestoreEventsRepository implements IEventsRepository {
         : query(eventsRef, where('calendarType', '==', 'shared'), where('visibility', '==', 'shared'));
 
       this.unsubscribeEvents = onSnapshot(source, (snap) => {
-        this.mergeServerEvents(snap.docs.map((d) => d.data() as CalendarEvent));
+        // appEventId が本文に無いドキュメントでもドキュメントIDから必ず補完する
+        // （欠けていると保存時に doc(..., undefined) で落ちるため）。
+        this.mergeServerEvents(
+          snap.docs.map((d) => {
+            const data = d.data() as CalendarEvent;
+            return { ...data, appEventId: data.appEventId ?? d.id };
+          }),
+        );
       }, () => this.emit());
       void this.refreshSharedEventsViaRest();
     });
@@ -76,6 +83,7 @@ export class FirestoreEventsRepository implements IEventsRepository {
   }
 
   private async pushToCloud(event: CalendarEvent): Promise<void> {
+    if (!event.appEventId) return; // IDが無いものは保存しない（undefinedパスで落ちるのを防ぐ）
     const sanitized: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(event)) {
       if (value !== undefined) sanitized[key] = value;
