@@ -397,6 +397,16 @@ input, textarea, select { font-family: inherit; font-size: 16px; }
 .research-card:active { transform: scale(.98); }
 .research-sub { font-size: 10px; color: var(--text-soft); font-weight: 700; margin-top: 2px; }
 
+/* ---- 旅行プラン（外部サイト埋め込み） ---- */
+.trip-screen { display: flex; flex-direction: column; }
+.trip-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.trip-title { font-size: 18px; font-weight: 800; color: var(--text); }
+.trip-frame {
+  width: 100%; height: calc(100vh - 210px); min-height: 420px;
+  border: 0; border-radius: 16px; background: #fff;
+  box-shadow: 0 1px 6px rgba(0,0,0,.06);
+}
+
 /* ---- 1日タイムライン（時間ごと） ---- */
 .timeline-screen { display: flex; flex-direction: column; }
 .tl-header {
