@@ -72,15 +72,19 @@ export function CalendarView({
   };
 
   // 左右スワイプで前後の月/週/日へ移動。
-  const touch = { x: 0, y: 0 };
+  // 座標は useRef で保持（毎レンダーで作り直されると開始座標を見失うため）。
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
   const onTouchStart = (e: React.TouchEvent) => {
-    touch.x = e.touches[0].clientX;
-    touch.y = e.touches[0].clientY;
+    touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
   };
   const onTouchEnd = (e: React.TouchEvent) => {
-    const dx = e.changedTouches[0].clientX - touch.x;
-    const dy = e.changedTouches[0].clientY - touch.y;
-    if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+    const start = touchStart.current;
+    touchStart.current = null;
+    if (!start) return;
+    const dx = e.changedTouches[0].clientX - start.x;
+    const dy = e.changedTouches[0].clientY - start.y;
+    // 横移動が縦より大きく、しきい値を超えたら月/週/日を移動。
+    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy)) {
       move(dx < 0 ? 1 : -1); // 左スワイプ=次、右スワイプ=前
     }
   };
