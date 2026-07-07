@@ -27,6 +27,26 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
   const { last, online } = useSync();
   const { permission, requestPermission } = useNotifications();
   const [sharedGoogleStatus, setSharedGoogleStatus] = useState(readSharedGoogleSyncStatus);
+  const [connecting, setConnecting] = useState(false);
+  const [connectErr, setConnectErr] = useState<string | null>(null);
+  const [gcalConnected, setGcalConnected] = useState(() => services.auth.isGoogleCalendarConnected?.() ?? false);
+
+  // サーバー同期が失敗している場合の代替：この端末のGoogleログインで共有カレンダーを
+  // 直接読み取って取り込む（君は共有カレンダーのオーナーなので読める）。連携後に同期を起動。
+  const connectAndImport = async () => {
+    setConnecting(true);
+    setConnectErr(null);
+    try {
+      const ok = (await services.auth.connectGoogleCalendar?.()) ?? false;
+      setGcalConnected(services.auth.isGoogleCalendarConnected?.() ?? ok);
+      if (!ok) setConnectErr('Google連携に失敗しました');
+      requestSharedGoogleSync(); // 取り込みを起動
+    } catch (error) {
+      setConnectErr(error instanceof Error ? error.message : String(error));
+    } finally {
+      setConnecting(false);
+    }
+  };
 
   const config = services.settingsRepo.getAppConfig();
   const googleCalId = config.googleSharedCalendarId ?? APP_CONFIG.googleSharedCalendarId;
@@ -138,19 +158,32 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
               </span>
             </div>
             <p className="muted" style={{ margin: '10px 0' }}>
-              共有Googleカレンダーはサーバー側でFirestoreに同期します。この端末でGoogleカレンダー連携をやり直す必要はありません。
+              通常はサーバー側で自動同期します。サーバー同期が失敗している時は、下の
+              「この端末で連携して取り込む」を押すと、あなたのGoogleログインで共有カレンダーを
+              直接読み込んで取り込みます（個人カレンダーは取り込みません）。
             </p>
             {sharedGoogleStatus.lastError && (
-              <p className="login-error" style={{ margin: '10px 0' }}>
-                {sharedGoogleStatus.lastError}
+              <p className="muted" style={{ margin: '10px 0', fontSize: 12 }}>
+                サーバー同期の状態: {sharedGoogleStatus.lastError}
               </p>
             )}
+            {connectErr && (
+              <p className="login-error" style={{ margin: '10px 0' }}>{connectErr}</p>
+            )}
+            <button
+              className="btn"
+              disabled={connecting || !googleCalId}
+              onClick={connectAndImport}
+              style={{ marginBottom: 10 }}
+            >
+              {connecting ? '連携中…' : gcalConnected ? '共有予定を今すぐ取り込む' : 'この端末で連携して取り込む'}
+            </button>
             <button
               className="btn secondary"
               disabled={sharedGoogleStatus.state === 'syncing' || !googleCalId}
               onClick={requestSharedGoogleSync}
             >
-              共有Googleカレンダーを同期
+              サーバー同期を再試行
             </button>
           </div>
         </>
