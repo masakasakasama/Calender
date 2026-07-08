@@ -273,6 +273,7 @@ async function syncSharedGoogleCalendarImpl(): Promise<{ imported: number; updat
   for (const item of incoming) {
     const key = `${calendarId}:${item.id}`;
     const existing = localByGoogle.get(key);
+    if (existing?.deletedAt) continue;
     const next = googleToEvent(calendarId, item, existing);
     batch.set(db.collection('events').doc(next.appEventId), next, { merge: true });
     if (existing) updated++;

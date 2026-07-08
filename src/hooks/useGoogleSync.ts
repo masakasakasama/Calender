@@ -101,10 +101,12 @@ export function useGoogleSync(user: User | null) {
           const eventKey = sourceKey(saved.sourceGoogleCalendarId, saved.sourceGoogleEventId ?? saved.appEventId);
           const link = allLinks.find(
             (candidate) =>
-              candidate.status === 'active' &&
               candidate.sharedBy === user.userId &&
               eventKey === sourceKey(candidate.sourceGoogleCalendarId, candidate.sourceGoogleEventId),
           );
+          if (link?.status === 'removed') {
+            continue;
+          }
           if (!link) {
             await services.share.shareEvent({ sharedCalendarId, source: saved, byUserId: user.userId, silent: true });
           } else {

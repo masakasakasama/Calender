@@ -88,12 +88,15 @@ export function useGoogleSharedCalendarSync(user: User | null) {
         const localBeforeUpsert = services.eventsRepo.getAll();
         // 取り込みのみ。ここでの自動削除（stale掃除）は撤去した。
         // 共有カレンダーに載っていない予定を消してしまい、復元がすぐ巻き戻る原因だったため。
+        let applied = 0;
         for (const ev of incoming) {
           const existing = localBeforeUpsert.find((local) => sameGoogleSharedEvent(local, ev));
+          if (existing?.deletedAt) continue;
           await services.eventsRepo.upsert(mergeGoogleSharedEvent(existing, ev, user.userId));
+          applied++;
         }
         markSharedGoogleSyncOk({
-          imported: incoming.length,
+          imported: applied,
           updated: 0,
           deleted: 0,
           calendarId: googleCalendarId,
