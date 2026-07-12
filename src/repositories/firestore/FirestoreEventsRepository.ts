@@ -216,14 +216,20 @@ export class FirestoreEventsRepository implements IEventsRepository {
 
   async upsert(event: CalendarEvent): Promise<CalendarEvent> {
     const next = { ...event, updatedAt: new Date().toISOString() };
-    const previous = this.getById(next.appEventId);
     this.cache = [...this.cache.filter((e) => e.appEventId !== next.appEventId), next];
     localStore.set(CACHE_KEY, this.cache);
     this.emit();
     try {
       await this.pushToCloud(next);
     } catch (error) {
-      this.rollbackEvent(next.appEventId, previous);
+      const pending: CalendarEvent = {
+        ...next,
+        syncStatus: 'pending',
+        syncError: error instanceof Error ? error.message : String(error),
+      };
+      this.cache = [...this.cache.filter((e) => e.appEventId !== pending.appEventId), pending];
+      localStore.set(CACHE_KEY, this.cache);
+      this.emit();
       throw error;
     }
     return next;
@@ -232,12 +238,20 @@ export class FirestoreEventsRepository implements IEventsRepository {
   async forceResync(): Promise<string | null> {
     const list = this.cache.filter((e) => !e.deletedAt);
     let firstError: string | null = null;
+    let changed = false;
     for (const event of list) {
       try {
-        await this.pushToCloud(event);
+        const synced: CalendarEvent = { ...event, syncStatus: 'synced', syncError: null };
+        await this.pushToCloud(synced);
+        this.cache = this.cache.map((item) => item.appEventId === synced.appEventId ? synced : item);
+        changed = true;
       } catch (err) {
         if (!firstError) firstError = err instanceof Error ? err.message : String(err);
       }
+    }
+    if (changed) {
+      localStore.set(CACHE_KEY, this.cache);
+      this.emit();
     }
     return firstError;
   }
