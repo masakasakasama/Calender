@@ -88,7 +88,46 @@ export class FirestoreEventsRepository implements IEventsRepository {
     for (const [key, value] of Object.entries(event)) {
       if (value !== undefined) sanitized[key] = value;
     }
-    await setDoc(doc(firebaseDb(), COL, event.appEventId), { ...sanitized, _serverUpdatedAt: serverTimestamp() });
+    await this.writeToCloud(event.appEventId, { ...sanitized, _serverUpdatedAt: serverTimestamp() });
+  }
+
+  private async writeToCloud(appEventId: string, data: Record<string, unknown>, merge = false): Promise<void> {
+    const auth = firebaseAuth();
+    await auth.authStateReady();
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error('Googleログインの有効期限が切れています。もう一度ログインしてください。');
+    }
+
+    const ref = doc(firebaseDb(), COL, appEventId);
+    const write = () => merge ? setDoc(ref, data, { merge: true }) : setDoc(ref, data);
+
+    try {
+      await write();
+    } catch (error) {
+      if (!this.isPermissionDenied(error)) throw error;
+      await user.getIdToken(true);
+      try {
+        await write();
+      } catch (retryError) {
+        if (this.isPermissionDenied(retryError)) {
+          throw new Error('共有予定の保存権限を確認できませんでした。Googleでログインし直してください。');
+        }
+        throw retryError;
+      }
+    }
+  }
+
+  private isPermissionDenied(error: unknown): boolean {
+    if (!error || typeof error !== 'object' || !('code' in error)) return false;
+    return String(error.code).includes('permission-denied');
+  }
+
+  private rollbackEvent(appEventId: string, previous: CalendarEvent | undefined): void {
+    const withoutFailedVersion = this.cache.filter((event) => event.appEventId !== appEventId);
+    this.cache = previous ? [...withoutFailedVersion, previous] : withoutFailedVersion;
+    localStore.set(CACHE_KEY, this.cache);
+    this.emit();
   }
 
   private mergeServerEvents(server: CalendarEvent[]): void {
@@ -158,24 +197,36 @@ export class FirestoreEventsRepository implements IEventsRepository {
   /** 論理削除の取り消し。deletedAt を外して再表示・再同期する。 */
   async restore(appEventId: string, byUserId: string): Promise<void> {
     const now = new Date().toISOString();
+    const previous = this.getById(appEventId);
     this.cache = this.cache.map((e) =>
       e.appEventId === appEventId ? { ...e, deletedAt: null, updatedAt: now, updatedBy: byUserId } : e,
     );
     localStore.set(CACHE_KEY, this.cache);
     this.emit();
-    await setDoc(
-      doc(firebaseDb(), COL, appEventId),
-      { deletedAt: null, updatedAt: now, updatedBy: byUserId, _serverUpdatedAt: serverTimestamp() },
-      { merge: true },
-    );
+    try {
+      await this.writeToCloud(
+        appEventId,
+        { deletedAt: null, updatedAt: now, updatedBy: byUserId, _serverUpdatedAt: serverTimestamp() },
+        true,
+      );
+    } catch (error) {
+      this.rollbackEvent(appEventId, previous);
+      throw error;
+    }
   }
 
   async upsert(event: CalendarEvent): Promise<CalendarEvent> {
     const next = { ...event, updatedAt: new Date().toISOString() };
+    const previous = this.getById(next.appEventId);
     this.cache = [...this.cache.filter((e) => e.appEventId !== next.appEventId), next];
     localStore.set(CACHE_KEY, this.cache);
     this.emit();
-    await this.pushToCloud(next);
+    try {
+      await this.pushToCloud(next);
+    } catch (error) {
+      this.rollbackEvent(next.appEventId, previous);
+      throw error;
+    }
     return next;
   }
 
@@ -194,15 +245,21 @@ export class FirestoreEventsRepository implements IEventsRepository {
 
   async softDelete(appEventId: string, byUserId: string): Promise<void> {
     const now = new Date().toISOString();
+    const previous = this.getById(appEventId);
     this.cache = this.cache.map((e) =>
       e.appEventId === appEventId ? { ...e, deletedAt: now, updatedAt: now, updatedBy: byUserId } : e,
     );
     localStore.set(CACHE_KEY, this.cache);
     this.emit();
-    await setDoc(
-      doc(firebaseDb(), COL, appEventId),
-      { deletedAt: now, updatedAt: now, updatedBy: byUserId, _serverUpdatedAt: serverTimestamp() },
-      { merge: true },
-    );
+    try {
+      await this.writeToCloud(
+        appEventId,
+        { deletedAt: now, updatedAt: now, updatedBy: byUserId, _serverUpdatedAt: serverTimestamp() },
+        true,
+      );
+    } catch (error) {
+      this.rollbackEvent(appEventId, previous);
+      throw error;
+    }
   }
 }

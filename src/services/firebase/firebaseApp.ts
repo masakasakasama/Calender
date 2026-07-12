@@ -6,7 +6,6 @@ import {
   getAuth,
   indexedDBLocalPersistence,
   initializeAuth,
-  setPersistence,
   type Auth,
 } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
@@ -45,13 +44,12 @@ export function firebaseAuth(): Auth {
   if (!_auth) {
     try {
       _auth = initializeAuth(firebaseApp(), {
-        persistence: [indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence],
+        persistence: [browserLocalPersistence, indexedDBLocalPersistence, browserSessionPersistence],
         popupRedirectResolver: browserPopupRedirectResolver,
       });
     } catch {
       _auth = getAuth(firebaseApp());
     }
-    void setPersistence(_auth, indexedDBLocalPersistence).catch(() => setPersistence(_auth!, browserLocalPersistence));
   }
   return _auth;
 }
