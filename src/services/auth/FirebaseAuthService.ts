@@ -1,23 +1,19 @@
 import {
   GoogleAuthProvider,
-  browserLocalPersistence,
-  browserSessionPersistence,
-  indexedDBLocalPersistence,
   signInWithPopup,
   signOut as fbSignOut,
   onAuthStateChanged as fbOnAuthStateChanged,
-  setPersistence,
-  type Auth,
   type User as FbUser,
 } from 'firebase/auth';
 import type { User } from '@/types';
 import { isAllowedUser, resolveRole } from '@/config/appConfig';
-import { firebaseAuth } from '@/services/firebase/firebaseApp';
+import { ensureFirebaseSession, firebaseAuth, setDurableAuthPersistence } from '@/services/firebase/firebaseApp';
 import type { IUsersRepository } from '@/repositories/users/IUsersRepository';
 import type { IAuthService } from './IAuthService';
 
 const GCAL_TOKEN_KEY = 'calender_google_calendar_access_token';
 const GCAL_TOKEN_EXPIRES_KEY = 'calender_google_calendar_access_token_expires_at';
+const APP_USER_CACHE_KEY = 'calender_last_signed_in_user';
 
 // =====================================================================
 // 本番の Googleログイン。Firebase Auth + GoogleAuthProvider。
@@ -49,23 +45,69 @@ function toAppUser(fb: FbUser): User {
   };
 }
 
-async function setDurablePersistence(auth: Auth): Promise<void> {
-  try {
-    await setPersistence(auth, browserLocalPersistence);
-  } catch {
-    try {
-      await setPersistence(auth, indexedDBLocalPersistence);
-    } catch {
-      await setPersistence(auth, browserSessionPersistence);
-    }
-  }
+function appUserFromStoredAuth(stored: {
+  uid?: string;
+  email?: string;
+  displayName?: string;
+  photoURL?: string | null;
+}): User | null {
+  const role = resolveRole(stored.email);
+  if (!stored.email || !stored.uid || !role || !isAllowedUser(stored.email)) return null;
+  const now = new Date().toISOString();
+  return {
+    userId: stored.uid,
+    displayName: stored.displayName ?? stored.email,
+    email: stored.email.toLowerCase(),
+    role,
+    photoURL: stored.photoURL ?? null,
+    notificationEnabled: false,
+    createdAt: now,
+    updatedAt: now,
+  };
 }
 
 export class FirebaseAuthService implements IAuthService {
-  private current: User | null = null;
+  private current: User | null = this.restoreCachedUser();
   private googleAccessToken: string | null = this.restoreGoogleAccessToken();
+  private signingOut = false;
 
   constructor(private users: IUsersRepository) {}
+
+  private restoreCachedUser(): User | null {
+    if (typeof localStorage === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem(APP_USER_CACHE_KEY);
+      if (raw) {
+        const user = JSON.parse(raw) as User;
+        if (isAllowedUser(user.email)) return user;
+      }
+    } catch {
+      // Fall through to Firebase's persisted user record.
+    }
+
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key?.startsWith('firebase:authUser:')) continue;
+      try {
+        const user = appUserFromStoredAuth(JSON.parse(localStorage.getItem(key) ?? '{}'));
+        if (!user) continue;
+        this.rememberCachedUser(user);
+        return user;
+      } catch {
+        // Keep scanning other Firebase auth records.
+      }
+    }
+    return null;
+  }
+
+  private rememberCachedUser(user: User | null): void {
+    if (typeof localStorage === 'undefined') return;
+    if (!user) {
+      localStorage.removeItem(APP_USER_CACHE_KEY);
+      return;
+    }
+    localStorage.setItem(APP_USER_CACHE_KEY, JSON.stringify(user));
+  }
 
   private restoreGoogleAccessToken(): string | null {
     if (typeof localStorage === 'undefined') return null;
@@ -100,19 +142,33 @@ export class FirebaseAuthService implements IAuthService {
       if (fb && isAllowedUser(fb.email)) {
         const user = toAppUser(fb);
         this.current = user;
+        this.rememberCachedUser(user);
         await this.users.upsert(user).catch(() => {});
         listener(user);
+      } else if (fb?.isAnonymous) {
+        const cached = this.restoreCachedUser();
+        this.current = cached;
+        listener(cached);
       } else {
         if (fb) await fbSignOut(firebaseAuth()).catch(() => {});
-        this.current = null;
-        listener(null);
+        if (this.signingOut) {
+          this.signingOut = false;
+          this.current = null;
+          this.rememberCachedUser(null);
+          listener(null);
+          return;
+        }
+        const cached = this.restoreCachedUser();
+        this.current = cached;
+        listener(cached);
+        if (cached) void ensureFirebaseSession().catch(() => {});
       }
     });
   }
 
   async signInWithGoogle(): Promise<User> {
     const auth = firebaseAuth();
-    await setDurablePersistence(auth);
+    await setDurableAuthPersistence(auth);
     const cred = await signInWithPopup(auth, makeProvider());
     if (!isAllowedUser(cred.user.email)) {
       await fbSignOut(firebaseAuth());
@@ -120,6 +176,7 @@ export class FirebaseAuthService implements IAuthService {
     }
     const user = toAppUser(cred.user);
     this.current = user;
+    this.rememberCachedUser(user);
     await this.users.upsert(user).catch(() => {});
     return user;
   }
@@ -138,7 +195,7 @@ export class FirebaseAuthService implements IAuthService {
   async connectGoogleCalendar(): Promise<boolean> {
     if (this.googleAccessToken) return true;
     const auth = firebaseAuth();
-    await setDurablePersistence(auth);
+    await setDurableAuthPersistence(auth);
     const cred = await signInWithPopup(auth, makeProvider(true));
     if (!isAllowedUser(cred.user.email)) {
       await fbSignOut(firebaseAuth());
@@ -148,6 +205,7 @@ export class FirebaseAuthService implements IAuthService {
     this.rememberGoogleAccessToken(oauth?.accessToken ?? null);
     const user = toAppUser(cred.user);
     this.current = user;
+    this.rememberCachedUser(user);
     await this.users.upsert(user).catch(() => {});
     // 連携直後に自動同期をキック。
     if (this.googleAccessToken && typeof window !== 'undefined') {
@@ -161,7 +219,9 @@ export class FirebaseAuthService implements IAuthService {
   }
 
   async signOut(): Promise<void> {
+    this.signingOut = true;
     this.current = null;
+    this.rememberCachedUser(null);
     this.rememberGoogleAccessToken(null);
     await fbSignOut(firebaseAuth());
   }

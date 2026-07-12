@@ -10,7 +10,7 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 import type { CalendarEvent } from '@/types';
-import { firebaseApp, firebaseAuth, firebaseDb } from '@/services/firebase/firebaseApp';
+import { ensureFirebaseSession, firebaseApp, firebaseAuth, firebaseDb } from '@/services/firebase/firebaseApp';
 import type { IEventsRepository } from '@/repositories/events/IEventsRepository';
 import { localStore } from '@/repositories/db/LocalStore';
 
@@ -92,11 +92,10 @@ export class FirestoreEventsRepository implements IEventsRepository {
   }
 
   private async writeToCloud(appEventId: string, data: Record<string, unknown>, merge = false): Promise<void> {
-    const auth = firebaseAuth();
-    await auth.authStateReady();
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('Googleログインの有効期限が切れています。もう一度ログインしてください。');
+    const user = await ensureFirebaseSession();
+    const target = this.getById(appEventId);
+    if (user.isAnonymous && target && (target.calendarType !== 'shared' || target.visibility !== 'shared')) {
+      return;
     }
 
     const ref = doc(firebaseDb(), COL, appEventId);
@@ -111,7 +110,7 @@ export class FirestoreEventsRepository implements IEventsRepository {
         await write();
       } catch (retryError) {
         if (this.isPermissionDenied(retryError)) {
-          throw new Error('共有予定の保存権限を確認できませんでした。Googleでログインし直してください。');
+          throw new Error('共有予定の保存に失敗しました。時間をおいてもう一度保存してください。');
         }
         throw retryError;
       }
@@ -139,7 +138,7 @@ export class FirestoreEventsRepository implements IEventsRepository {
   }
 
   private async refreshSharedEventsViaRest(): Promise<void> {
-    const user = firebaseAuth().currentUser;
+    const user = await ensureFirebaseSession().catch(() => null);
     const projectId = firebaseApp().options.projectId;
     if (!user || !projectId || typeof fetch === 'undefined') return;
 

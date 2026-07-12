@@ -6,7 +6,10 @@ import {
   getAuth,
   indexedDBLocalPersistence,
   initializeAuth,
+  setPersistence,
+  signInAnonymously,
   type Auth,
+  type User as FirebaseUser,
 } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 import { getFunctions, type Functions } from 'firebase/functions';
@@ -34,6 +37,7 @@ let _app: FirebaseApp | null = null;
 let _auth: Auth | null = null;
 let _db: Firestore | null = null;
 let _functions: Functions | null = null;
+let _anonymousSignIn: Promise<FirebaseUser> | null = null;
 
 export function firebaseApp(): FirebaseApp {
   if (!_app) _app = initializeApp(cfg as Record<string, string>);
@@ -52,6 +56,36 @@ export function firebaseAuth(): Auth {
     }
   }
   return _auth;
+}
+
+export async function setDurableAuthPersistence(auth: Auth = firebaseAuth()): Promise<void> {
+  try {
+    await setPersistence(auth, browserLocalPersistence);
+  } catch {
+    try {
+      await setPersistence(auth, indexedDBLocalPersistence);
+    } catch {
+      await setPersistence(auth, browserSessionPersistence);
+    }
+  }
+}
+
+// A cached app identity may outlive the Firebase session on Samsung PWAs.
+// Shared-event rules explicitly allow anonymous Firebase sessions, so restore
+// that transport session silently instead of showing another Google login.
+export async function ensureFirebaseSession(): Promise<FirebaseUser> {
+  const auth = firebaseAuth();
+  await auth.authStateReady();
+  if (auth.currentUser) return auth.currentUser;
+  if (!_anonymousSignIn) {
+    _anonymousSignIn = (async () => {
+      await setDurableAuthPersistence(auth);
+      return (await signInAnonymously(auth)).user;
+    })().finally(() => {
+      _anonymousSignIn = null;
+    });
+  }
+  return _anonymousSignIn;
 }
 
 export function firebaseDb(): Firestore {
