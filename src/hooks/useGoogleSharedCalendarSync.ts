@@ -78,14 +78,18 @@ export function useGoogleSharedCalendarSync(user: User | null) {
         // Fall back to direct browser sync only if this device already has a Calendar token.
       }
 
-      if (!(services.auth.isGoogleCalendarConnected?.() ?? false) || !services.calendar.listGoogleSharedEvents) {
+      if (
+        user.role !== 'partner' ||
+        !(services.auth.isGoogleCalendarConnected?.() ?? false) ||
+        !services.calendar.listGoogleSharedEvents
+      ) {
         running = false;
         return;
       }
 
       try {
         const incoming = await services.calendar.listGoogleSharedEvents!(googleCalendarId);
-        const localBeforeUpsert = services.eventsRepo.getAll();
+        const localBeforeUpsert = services.eventsRepo.getAllRaw?.() ?? services.eventsRepo.getAll();
         // 取り込みのみ。ここでの自動削除（stale掃除）は撤去した。
         // 共有カレンダーに載っていない予定を消してしまい、復元がすぐ巻き戻る原因だったため。
         let applied = 0;

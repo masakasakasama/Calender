@@ -31,16 +31,16 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
   const [connectErr, setConnectErr] = useState<string | null>(null);
   const [gcalConnected, setGcalConnected] = useState(() => services.auth.isGoogleCalendarConnected?.() ?? false);
 
-  // サーバー同期が失敗している場合の代替：この端末のGoogleログインで共有カレンダーを
-  // 直接読み取って取り込む（君は共有カレンダーのオーナーなので読める）。連携後に同期を起動。
+  // 俺側のGoogleログインで専用の「共有のカレンダー」を読み取る。嫁側では呼ばない。
   const connectAndImport = async () => {
+    if (user.role !== 'partner') return;
     setConnecting(true);
     setConnectErr(null);
     try {
       const ok = (await services.auth.connectGoogleCalendar?.()) ?? false;
       setGcalConnected(services.auth.isGoogleCalendarConnected?.() ?? ok);
       if (!ok) setConnectErr('Google連携に失敗しました');
-      requestSharedGoogleSync(); // 取り込みを起動
+      if (ok) window.dispatchEvent(new Event('gcal-connected'));
     } catch (error) {
       setConnectErr(error instanceof Error ? error.message : String(error));
     } finally {
@@ -132,8 +132,12 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
               <span className="v">{googleCalId ? '設定済み' : '未設定'}</span>
             </div>
             <div className="set-row">
+              <span>嫁予定の読取</span>
+              <span className="v">俺側のGoogle連携のみ</span>
+            </div>
+            <div className="set-row">
               <span>同期方式</span>
-              <span className="v">サーバー自動同期</span>
+              <span className="v">俺側端末で自動取得</span>
             </div>
             <div className="set-row">
               <span>Google最終取得</span>
@@ -157,11 +161,16 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
                   : `取得${sharedGoogleStatus.imported ?? 0} / 更新${sharedGoogleStatus.updated ?? 0} / 削除${sharedGoogleStatus.deleted ?? 0}`}
               </span>
             </div>
-            <p className="muted" style={{ margin: '10px 0' }}>
-              通常はサーバー側で自動同期します。サーバー同期が失敗している時は、下の
-              「この端末で連携して取り込む」を押すと、あなたのGoogleログインで共有カレンダーを
-              直接読み込んで取り込みます（個人カレンダーは取り込みません）。
-            </p>
+            {user.role === 'partner' ? (
+              <p className="muted" style={{ margin: '10px 0' }}>
+                俺側のGoogleログインから「共有のカレンダー」だけを読み取ります。
+                嫁側のGoogleログインや許可、嫁のGoogleカレンダーへの書き込みは行いません。
+              </p>
+            ) : (
+              <p className="muted" style={{ margin: '10px 0' }}>
+                嫁側のGoogle連携は不要です。俺側で取得した予定だけが共有に表示されます。
+              </p>
+            )}
             {sharedGoogleStatus.lastError && (
               <p className="muted" style={{ margin: '10px 0', fontSize: 12 }}>
                 サーバー同期の状態: {sharedGoogleStatus.lastError}
@@ -170,14 +179,16 @@ export function SettingsScreen({ user, onSignOut }: { user: User; onSignOut: () 
             {connectErr && (
               <p className="login-error" style={{ margin: '10px 0' }}>{connectErr}</p>
             )}
-            <button
-              className="btn"
-              disabled={connecting || !googleCalId}
-              onClick={connectAndImport}
-              style={{ marginBottom: 10 }}
-            >
-              {connecting ? '連携中…' : gcalConnected ? '共有予定を今すぐ取り込む' : 'この端末で連携して取り込む'}
-            </button>
+            {user.role === 'partner' && (
+              <button
+                className="btn"
+                disabled={connecting || !googleCalId}
+                onClick={connectAndImport}
+                style={{ marginBottom: 10 }}
+              >
+                {connecting ? '連携中…' : gcalConnected ? '共有のカレンダーを今すぐ取り込む' : '俺側でGoogle連携して取り込む'}
+              </button>
+            )}
             <button
               className="btn secondary"
               disabled={sharedGoogleStatus.state === 'syncing' || !googleCalId}

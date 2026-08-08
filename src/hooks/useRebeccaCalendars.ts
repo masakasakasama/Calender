@@ -128,7 +128,7 @@ export function useRebeccaCalendars(currentUserId: string | null) {
 
   const syncIds = settings.filter((s) => s.syncEnabled).map((s) => s.googleCalendarId);
   const syncIdsKey = syncIds.join('\n');
-  // 共有カレンダーへの自動同期は useGoogleSync（App全体）で実行する。
+  // 共有Googleカレンダーの自動取り込みは App 全体の専用フックで実行する。
 
   // 同期対象カレンダーの予定を読み込む。
   // refreshKey を依存に含め、連携(connect)直後にも再取得する。

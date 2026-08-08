@@ -186,11 +186,6 @@ function syncWindow(now = new Date()): { from: Date; to: Date } {
   return { from, to };
 }
 
-function insideSyncWindow(event: CalendarEventDoc, now = new Date()): boolean {
-  const { from, to } = syncWindow(now);
-  return new Date(event.end) >= from && new Date(event.start) <= to;
-}
-
 function googleToEvent(calendarId: string, item: GoogleEventItem, existing?: CalendarEventDoc): CalendarEventDoc {
   const now = new Date().toISOString();
   const updatedAt = item.updated ? new Date(item.updated).toISOString() : now;
@@ -256,7 +251,6 @@ async function syncSharedGoogleCalendarImpl(): Promise<{ imported: number; updat
   const calendarId = GOOGLE_SHARED_CALENDAR_ID.value();
   const db = admin.firestore();
   const incoming = await listSharedGoogleEvents(calendarId);
-  const incomingKeys = new Set(incoming.map((item) => `${calendarId}:${item.id}`));
   const snap = await db.collection('events').where('calendarType', '==', 'shared').get();
   const local = snap.docs.map((doc) => doc.data() as CalendarEventDoc);
   const localByGoogle = new Map<string, CalendarEventDoc>();
@@ -267,7 +261,7 @@ async function syncSharedGoogleCalendarImpl(): Promise<{ imported: number; updat
 
   let imported = 0;
   let updated = 0;
-  let deleted = 0;
+  const deleted = 0;
   const batch = db.batch();
 
   for (const item of incoming) {
@@ -278,20 +272,6 @@ async function syncSharedGoogleCalendarImpl(): Promise<{ imported: number; updat
     batch.set(db.collection('events').doc(next.appEventId), next, { merge: true });
     if (existing) updated++;
     else imported++;
-  }
-
-  for (const event of local) {
-    const key = googleKey(event);
-    const isRealSharedGoogleEvent = (event.sharedGoogleCalendarId ?? event.googleCalendarId) === calendarId && key;
-    if (!isRealSharedGoogleEvent) continue;
-    if (!insideSyncWindow(event)) continue;
-    if (incomingKeys.has(key)) continue;
-    batch.set(
-      db.collection('events').doc(event.appEventId),
-      { deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString(), updatedBy: 'server-google-sync' },
-      { merge: true },
-    );
-    deleted++;
   }
 
   await batch.commit();
