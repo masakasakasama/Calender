@@ -12,9 +12,47 @@ import { fetchEventImage } from '@/utils/eventImage';
 import {
   upcomingWeekendEventGroups,
   weekendEventToFeedbackItemWithResearch,
-  weekendEventToInitialWithResearch,
   weekendResearchToGroups,
 } from '@/utils/monthlyWeekendEvents';
+import type { WeekendEventPick } from '@/utils/monthlyWeekendEvents';
+
+function toLocalDateKey(value: Date): string {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function weekendEventToInitialClean(item: WeekendEventPick): Partial<EventFormValue> {
+  return {
+    title: `${item.emoji} ${item.title}`,
+    description: [
+      item.summary,
+      '',
+      `日程: ${item.dateLabel}`,
+      `エリア: ${item.area}`,
+      `最寄り: ${item.nearestStation}`,
+      `料金: ${item.price}`,
+      `予約: ${item.reservation}`,
+      `雨天対応: ${item.rainFriendly ? '屋内または雨でも使いやすい' : '天候確認が必要'}`,
+      '',
+      item.coupleNote ?? item.summary,
+      '',
+      `出典: ${item.sourceName}`,
+      item.url,
+    ].join('\n'),
+    location: item.locationName,
+    start: new Date(item.start).toISOString(),
+    end: new Date(item.end).toISOString(),
+    reminderMinutes: 60,
+    color: null,
+    emoji: item.emoji,
+    categoryId: item.categoryId,
+    mapsPlaceId: null,
+    recurrence: { frequency: 'none', count: 1 },
+    visibility: 'shared',
+  };
+}
 
 export function PlanScreen({ user }: { user: User }) {
   const { createEvent } = useSharedEvents(user.userId);
@@ -33,8 +71,10 @@ export function PlanScreen({ user }: { user: User }) {
   const [weekendExpanded, setWeekendExpanded] = useState(false);
   const [todayMarker, setTodayMarker] = useState(() => new Date().toDateString());
   const weekendGroups = useMemo(() => {
-    const researchedGroups = weekendResearchToGroups(researchedWeekend);
-    const merged = new Map(upcomingWeekendEventGroups().map((group) => [group.key, group]));
+    const todayKey = toLocalDateKey(new Date(todayMarker));
+    const researchedGroups = weekendResearchToGroups(researchedWeekend).filter((group) => group.endsOn >= todayKey);
+    const baseGroups = upcomingWeekendEventGroups().filter((group) => group.endsOn >= todayKey);
+    const merged = new Map(baseGroups.map((group) => [group.key, group]));
     researchedGroups.forEach((group) => merged.set(group.key, group));
     return Array.from(merged.values()).sort((a, b) => a.startsOn.localeCompare(b.startsOn));
   }, [researchedWeekend, todayMarker]);
@@ -322,7 +362,7 @@ export function PlanScreen({ user }: { user: User }) {
                                 style={{ marginTop: 8 }}
                                 onClick={(event) => {
                                   event.stopPropagation();
-                                  pick(weekendEventToInitialWithResearch(item));
+                                  pick(weekendEventToInitialClean(item));
                                 }}
                               >
                                 ＋ 予定に追加
