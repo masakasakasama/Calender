@@ -8,7 +8,6 @@ import { EventModal, type EventFormValue } from '@/components/calendar/EventModa
 import { isWeekend } from '@/utils/datePlans';
 import { addDays } from '@/utils/date';
 import { openInMaps, openWebSearch } from '@/utils/maps';
-import { fetchEventImage } from '@/utils/eventImage';
 import {
   upcomingWeekendEventGroups,
   weekendEventToFeedbackItemWithResearch,
@@ -16,32 +15,15 @@ import {
 } from '@/utils/monthlyWeekendEvents';
 import type { WeekendEventPick } from '@/utils/monthlyWeekendEvents';
 
-const FALLBACK_IMAGES = {
-  fireworks: 'https://images.unsplash.com/photo-1467810563316-b5476525c0f9?auto=format&fit=crop&w=1200&q=80',
-  festival: 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?auto=format&fit=crop&w=1200&q=80',
-  museum: 'https://images.unsplash.com/photo-1566127992631-137a642a90f4?auto=format&fit=crop&w=1200&q=80',
-  food: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=1200&q=80',
-  park: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80',
-  night: 'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1200&q=80',
-  default: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80',
-} as const;
-
-function fallbackImageUrl(item: WeekendEventPick): string {
-  const text = [item.title, item.area, item.locationName, ...item.tags].join(' ');
-  if (/花火|firework/i.test(text)) return FALLBACK_IMAGES.fireworks;
-  if (/祭|まつり|縁日|よさこい|マーケット|フェス|festival|market/i.test(text)) return FALLBACK_IMAGES.festival;
-  if (/美術館|博物館|展示|展覧会|科学館|museum|gallery/i.test(text)) return FALLBACK_IMAGES.museum;
-  if (/グルメ|フード|茶会|カフェ|ランチ|food|meal|tea/i.test(text)) return FALLBACK_IMAGES.food;
-  if (/公園|庭園|動物園|park|zoo/i.test(text)) return FALLBACK_IMAGES.park;
-  if (/夜|星|ライト|ナイト|night|light|moon/i.test(text)) return FALLBACK_IMAGES.night;
-  return FALLBACK_IMAGES.default;
-}
-
 function toLocalDateKey(value: Date): string {
   const year = value.getFullYear();
   const month = String(value.getMonth() + 1).padStart(2, '0');
   const day = String(value.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function hasOfficialImage(item: WeekendEventPick): boolean {
+  return Boolean(item.imageUrl?.trim());
 }
 
 function weekendEventToInitialClean(item: WeekendEventPick): Partial<EventFormValue> {
@@ -91,6 +73,8 @@ export function PlanScreen({ user }: { user: User }) {
   const [editingIdeaId, setEditingIdeaId] = useState<string | null>(null);
   const [weekendExpanded, setWeekendExpanded] = useState(false);
   const [todayMarker, setTodayMarker] = useState(() => new Date().toDateString());
+  const [activeWeekendKey, setActiveWeekendKey] = useState('');
+
   const weekendGroups = useMemo(() => {
     const todayKey = toLocalDateKey(new Date(todayMarker));
     const researchedGroups = weekendResearchToGroups(researchedWeekend).filter((group) => group.endsOn >= todayKey);
@@ -99,8 +83,17 @@ export function PlanScreen({ user }: { user: User }) {
     researchedGroups.forEach((group) => merged.set(group.key, group));
     return Array.from(merged.values()).sort((a, b) => a.startsOn.localeCompare(b.startsOn));
   }, [researchedWeekend, todayMarker]);
-  const [activeWeekendKey, setActiveWeekendKey] = useState(weekendGroups[0]?.key ?? '');
-  const [monthlyImages, setMonthlyImages] = useState<Record<string, string>>({});
+
+  const displayWeekendGroups = useMemo(
+    () =>
+      weekendGroups
+        .map((group) => ({
+          ...group,
+          events: group.events.filter(hasOfficialImage),
+        }))
+        .filter((group) => group.events.length > 0),
+    [weekendGroups],
+  );
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -111,23 +104,12 @@ export function PlanScreen({ user }: { user: User }) {
   }, []);
 
   useEffect(() => {
-    if (!weekendGroups.some((group) => group.key === activeWeekendKey)) {
-      setActiveWeekendKey(weekendGroups[0]?.key ?? '');
+    if (!displayWeekendGroups.some((group) => group.key === activeWeekendKey)) {
+      setActiveWeekendKey(displayWeekendGroups[0]?.key ?? '');
     }
-  }, [activeWeekendKey, weekendGroups]);
+  }, [activeWeekendKey, displayWeekendGroups]);
 
-  useEffect(() => {
-    weekendGroups.flatMap((group) => group.events).forEach((item) => {
-      if (item.imageUrl || monthlyImages[item.id] !== undefined) return;
-      void fetchEventImage(item.imageQuery || item.locationName || item.title).then((url) => {
-        setMonthlyImages((current) => ({ ...current, [item.id]: url ?? fallbackImageUrl(item) }));
-      }).catch(() => {
-        setMonthlyImages((current) => ({ ...current, [item.id]: fallbackImageUrl(item) }));
-      });
-    });
-  }, [monthlyImages, weekendGroups]);
-
-  const activeWeekend = weekendGroups.find((group) => group.key === activeWeekendKey) ?? weekendGroups[0];
+  const activeWeekend = displayWeekendGroups.find((group) => group.key === activeWeekendKey) ?? displayWeekendGroups[0];
 
   const openIdeaInCalendar = (idea: CalendarEvent) => {
     const today = new Date();
@@ -291,16 +273,16 @@ export function PlanScreen({ user }: { user: User }) {
           onClick={() => setWeekendExpanded((current) => !current)}
         >
           <span>♡ 週末デート候補</span>
-          <small>{weekendGroups.length > 0 ? `${weekendGroups.reduce((sum, group) => sum + group.events.length, 0)}件` : '準備中'}</small>
+          <small>{displayWeekendGroups.length > 0 ? `${displayWeekendGroups.reduce((sum, group) => sum + group.events.length, 0)}件` : '準備中'}</small>
         </button>
 
         {weekendExpanded && (
           <>
-            {weekendGroups.length === 0 && <div className="list-empty">次の週末候補を準備中です</div>}
-            {weekendGroups.length > 0 && (
+            {displayWeekendGroups.length === 0 && <div className="list-empty">公式画像つきの週末候補を準備中です</div>}
+            {displayWeekendGroups.length > 0 && (
               <>
                 <div className="week-tabs" role="tablist" aria-label="週末を選択">
-                  {weekendGroups.map((group) => (
+                  {displayWeekendGroups.map((group) => (
                     <button
                       key={group.key}
                       type="button"
@@ -321,7 +303,7 @@ export function PlanScreen({ user }: { user: User }) {
                     <div style={{ marginTop: 12 }}>
                       {activeWeekend.events.map((item) => {
                         const feedbackItem = weekendEventToFeedbackItemWithResearch(item);
-                        const imageUrl = item.imageUrl ?? monthlyImages[item.id] ?? fallbackImageUrl(item);
+                        const imageUrl = item.imageUrl as string;
                         return (
                           <div
                             className="ai-event-card tappable research-event-card"
