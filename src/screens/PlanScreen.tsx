@@ -16,6 +16,27 @@ import {
 } from '@/utils/monthlyWeekendEvents';
 import type { WeekendEventPick } from '@/utils/monthlyWeekendEvents';
 
+const FALLBACK_IMAGES = {
+  fireworks: 'https://images.unsplash.com/photo-1467810563316-b5476525c0f9?auto=format&fit=crop&w=1200&q=80',
+  festival: 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?auto=format&fit=crop&w=1200&q=80',
+  museum: 'https://images.unsplash.com/photo-1566127992631-137a642a90f4?auto=format&fit=crop&w=1200&q=80',
+  food: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=1200&q=80',
+  park: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80',
+  night: 'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1200&q=80',
+  default: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80',
+} as const;
+
+function fallbackImageUrl(item: WeekendEventPick): string {
+  const text = [item.title, item.area, item.locationName, ...item.tags].join(' ');
+  if (/花火|firework/i.test(text)) return FALLBACK_IMAGES.fireworks;
+  if (/祭|まつり|縁日|よさこい|マーケット|フェス|festival|market/i.test(text)) return FALLBACK_IMAGES.festival;
+  if (/美術館|博物館|展示|展覧会|科学館|museum|gallery/i.test(text)) return FALLBACK_IMAGES.museum;
+  if (/グルメ|フード|茶会|カフェ|ランチ|food|meal|tea/i.test(text)) return FALLBACK_IMAGES.food;
+  if (/公園|庭園|動物園|park|zoo/i.test(text)) return FALLBACK_IMAGES.park;
+  if (/夜|星|ライト|ナイト|night|light|moon/i.test(text)) return FALLBACK_IMAGES.night;
+  return FALLBACK_IMAGES.default;
+}
+
 function toLocalDateKey(value: Date): string {
   const year = value.getFullYear();
   const month = String(value.getMonth() + 1).padStart(2, '0');
@@ -79,7 +100,7 @@ export function PlanScreen({ user }: { user: User }) {
     return Array.from(merged.values()).sort((a, b) => a.startsOn.localeCompare(b.startsOn));
   }, [researchedWeekend, todayMarker]);
   const [activeWeekendKey, setActiveWeekendKey] = useState(weekendGroups[0]?.key ?? '');
-  const [monthlyImages, setMonthlyImages] = useState<Record<string, string | null>>({});
+  const [monthlyImages, setMonthlyImages] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -99,7 +120,9 @@ export function PlanScreen({ user }: { user: User }) {
     weekendGroups.flatMap((group) => group.events).forEach((item) => {
       if (item.imageUrl || monthlyImages[item.id] !== undefined) return;
       void fetchEventImage(item.imageQuery || item.locationName || item.title).then((url) => {
-        setMonthlyImages((current) => ({ ...current, [item.id]: url }));
+        setMonthlyImages((current) => ({ ...current, [item.id]: url ?? fallbackImageUrl(item) }));
+      }).catch(() => {
+        setMonthlyImages((current) => ({ ...current, [item.id]: fallbackImageUrl(item) }));
       });
     });
   }, [monthlyImages, weekendGroups]);
@@ -298,7 +321,7 @@ export function PlanScreen({ user }: { user: User }) {
                     <div style={{ marginTop: 12 }}>
                       {activeWeekend.events.map((item) => {
                         const feedbackItem = weekendEventToFeedbackItemWithResearch(item);
-                        const imageUrl = item.imageUrl ?? monthlyImages[item.id] ?? null;
+                        const imageUrl = item.imageUrl ?? monthlyImages[item.id] ?? fallbackImageUrl(item);
                         return (
                           <div
                             className="ai-event-card tappable research-event-card"
@@ -307,8 +330,7 @@ export function PlanScreen({ user }: { user: User }) {
                             tabIndex={0}
                             onClick={() => openWebSearch(`${item.title} ${item.locationName}`)}
                           >
-                            <div className="ai-event-img" style={imageUrl ? { backgroundImage: `url("${imageUrl}")` } : undefined}>
-                              {!imageUrl && <span className="ai-event-emoji">{item.emoji}</span>}
+                            <div className="ai-event-img" style={{ backgroundImage: `url("${imageUrl}")` }}>
                               <span className="ai-event-date">
                                 {item.dateLabel} / {item.area}
                               </span>
