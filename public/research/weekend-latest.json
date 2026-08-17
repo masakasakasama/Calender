@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-17T21:32:00+09:00",
+  "generatedAt": "2026-08-17T23:00:00+09:00",
   "generatedBy": "chatgpt-weekend-research",
   "area": "東京・横浜の日帰り圏",
   "targetWeekend": {
@@ -7,7 +7,7 @@
     "end": "2026-08-23",
     "label": "2026/08/22(土)-08/23(日)"
   },
-  "summary": "2026年8月22日(土)・23日(日)向けに、公式情報を中心に更新。麻布十番納涼まつり、品川花火まつり、六本木ヒルズの夏フェス、丸の内の涼しいストリートイベント、星空観察、屋内科学館、夜の動物園を入れました。古い7月候補は表示しないようにアプリ側も修正済みです。",
+  "summary": "2026年8月22日(土)・23日(日)向け。公式・主催者・自治体ページ上の画像URLを確認できた候補だけに絞りました。公式画像が確認できない候補は表示対象から外しています。",
   "items": [
     {
       "id": "2026-08-22-azabujuban-noryo",
@@ -28,7 +28,7 @@
       "coupleNote": "混雑は強めなので、17時台に入り、六本木か赤羽橋方面へ抜ける帰路を先に決めるのが安全です。食べ歩き中心の夏デート向けです。",
       "sourceName": "東京の観光公式サイト GO TOKYO",
       "url": "https://www.gotokyo.org/jp/spot/ev095/index.html",
-      "imageUrl": null
+      "imageUrl": "https://www.gotokyo.org/en/spot/ev095/images/ev095_gd10095_sub_001a.webp"
     },
     {
       "id": "2026-08-22-shinagawa-hanabi-aquapark",
@@ -46,31 +46,10 @@
       "rainFriendly": true,
       "tags": ["屋内", "水族館", "花火演出", "夜", "品川"],
       "summary": "閉館後のアクアパークで19時から21時30分まで実施。イルカと盆踊り、デジタル花火のドルフィンパフォーマンス、縁日やアトラクションを楽しめます。",
-      "coupleNote": "暑さや雨を避けたい週末向け。品川駅近くなので、仕事帰り感覚でも行きやすく、夜イベントとして予定に入れやすいです。",
+      "coupleNote": "暑さや雨を避けたい週末向け。品川駅近くなので、夜イベントとして予定に入れやすいです。",
       "sourceName": "マクセル アクアパーク品川公式",
       "url": "https://www.aqua-park.jp/aqua/shinagawahanabimatsuri2026/index.html",
-      "imageUrl": null
-    },
-    {
-      "id": "2026-08-22-roppongi-summer-fes",
-      "title": "テレビ朝日・六本木ヒルズ SUMMER FES",
-      "emoji": "🎪",
-      "categoryId": "date",
-      "dateLabel": "開催中、8/23(日)まで",
-      "start": "2026-08-22T17:00:00+09:00",
-      "end": "2026-08-22T20:30:00+09:00",
-      "area": "六本木",
-      "locationName": "テレビ朝日・六本木ヒルズ・EX THEATER ROPPONGI",
-      "nearestStation": "六本木駅",
-      "price": "本社会場は入場無料。一部有料コンテンツあり",
-      "reservation": "コンテンツによりチケット確認",
-      "rainFriendly": true,
-      "tags": ["無料あり", "六本木", "グルメ", "番組", "屋内あり"],
-      "summary": "テレビ朝日、六本木ヒルズ、EX THEATER ROPPONGIで開催される音楽・番組・グルメの夏フェス。本社会場は入場無料です。",
-      "coupleNote": "麻布十番納涼まつりと近いので、混雑がきつければ六本木に逃がす候補として強いです。屋内寄りにも切り替えやすいです。",
-      "sourceName": "テレビ朝日・六本木ヒルズ SUMMER FES公式",
-      "url": "https://www.tv-asahi.co.jp/summerstation/about/",
-      "imageUrl": null
+      "imageUrl": "https://www.aqua-park.jp/image/hanabimaturi_2026.jpg"
     },
     {
       "id": "2026-08-22-marunouchi-street-park",
@@ -91,28 +70,7 @@
       "coupleNote": "東京駅近くで移動が楽。夕方以降なら暑さが落ちやすく、丸ビルや新丸ビルの食事にすぐつなげられます。",
       "sourceName": "Marunouchi Street Park公式",
       "url": "https://marunouchi-streetpark.com/",
-      "imageUrl": null
-    },
-    {
-      "id": "2026-08-22-shinjuku-chuo-park-summer",
-      "title": "新宿中央公園 夏まつり",
-      "emoji": "🥁",
-      "categoryId": "date",
-      "dateLabel": "8/22(土)-8/23(日)",
-      "start": "2026-08-22T17:00:00+09:00",
-      "end": "2026-08-22T20:00:00+09:00",
-      "area": "西新宿",
-      "locationName": "新宿中央公園 ファンモアタイムひろば",
-      "nearestStation": "都庁前駅・新宿駅",
-      "price": "公式案内確認",
-      "reservation": "不要想定。詳細は公式案内確認",
-      "rainFriendly": false,
-      "tags": ["夏祭り", "盆踊り", "新宿", "公園", "夕方"],
-      "summary": "8月22日と23日に、新宿中央公園のファンモアタイムひろばで夏まつりを開催。盆踊りと同時開催の週末イベントです。",
-      "coupleNote": "新宿で予定を完結させたい時の候補。食事、映画、カフェに逃がしやすく、天気が微妙な日でも代替を作りやすいです。",
-      "sourceName": "新宿中央公園公式",
-      "url": "https://shinjukuchuo-park.jp/events/event/2026/07/03/%E6%96%B0%E5%AE%BF%E4%B8%AD%E5%A4%AE%E5%85%AC%E5%9C%92%E3%80%80%E5%A4%8F%E3%81%BE%E3%81%A4%E3%82%8A%EF%BD%9E%E7%9B%86%E8%B8%8A%E3%82%8A%E3%81%A8%E5%90%8C%E6%99%82%E9%96%8B%E5%82%AC%EF%BD%9E-2/",
-      "imageUrl": null
+      "imageUrl": "https://marunouchi-streetpark.com/images/2026summer/contents_block1_1.jpg"
     },
     {
       "id": "2026-08-23-ojima-komatsugawa-stargazing",
@@ -133,7 +91,7 @@
       "coupleNote": "静かな夜デート向け。天気依存が強いので、当日15時までの中止情報を見てから動くのが安全です。",
       "sourceName": "東京都東部7公園公式",
       "url": "https://tokyo-eastpark.com/event/%E3%80%90%E5%A4%A7%E5%B3%B6%E5%B0%8F%E6%9D%BE%E5%B7%9D%E5%85%AC%E5%9C%92%E3%80%918-23%E6%97%A5%E3%80%8E%E6%98%9F%E7%A9%BA%E8%A6%B3%E5%AF%9F%E4%BC%9A%EF%BD%9E%E5%A4%8F%E3%81%AE%E6%98%9F%E5%BA%A7",
-      "imageUrl": null
+      "imageUrl": "https://tokyo-eastpark.com/wp-content/uploads/xo_event/b4c7578b08b720984b501c5c71d64f10-2-768x994.jpg"
     },
     {
       "id": "2026-08-23-minato-science-sea-shapes",
@@ -154,7 +112,7 @@
       "coupleNote": "猛暑・雨の日の安全候補。虎ノ門、神谷町、六本木方面の食事と組み合わせやすいです。",
       "sourceName": "港区立みなと科学館公式",
       "url": "https://minato-kagaku.tokyo/event/2026summer_uminoikimono/",
-      "imageUrl": null
+      "imageUrl": "https://minato-kagaku.tokyo/wp-content/uploads/2025/07/90a086b1890bb54c0e6e2205a6e838ea.jpg"
     },
     {
       "id": "2026-08-23-yokohama-night-zoo",
@@ -175,7 +133,7 @@
       "coupleNote": "都内から少し出たい日向け。野毛山なら無料寄り、ズーラシアなら広めで半日デート向きです。移動時間は先に見た方がいいです。",
       "sourceName": "横浜市公式",
       "url": "https://www.city.yokohama.lg.jp/kanko-bunka/kanko-event/eventannai/kyoku-sagasu/kankyo/night-zoo2026.html",
-      "imageUrl": null
+      "imageUrl": "https://www.city.yokohama.lg.jp/kanko-bunka/kanko-event/eventannai/kyoku-sagasu/kankyo/night-zoo2026.images/0002_20260612.jpg"
     }
   ]
 }
