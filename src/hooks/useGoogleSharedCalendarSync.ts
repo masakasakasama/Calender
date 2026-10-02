@@ -3,7 +3,7 @@ import { httpsCallable } from 'firebase/functions';
 import { APP_CONFIG } from '@/config/appConfig';
 import { services } from '@/services/container';
 import { firebaseFunctions } from '@/services/firebase/firebaseApp';
-import type { CalendarEvent, User } from '@/types';
+import type { User } from '@/types';
 import {
   markSharedGoogleSyncError,
   markSharedGoogleSyncOk,
@@ -14,46 +14,6 @@ import {
 
 function googleSharedCalId(): string | null {
   return services.settingsRepo.getAppConfig().googleSharedCalendarId ?? APP_CONFIG.googleSharedCalendarId ?? null;
-}
-
-function sameGoogleSharedEvent(a: CalendarEvent, b: CalendarEvent): boolean {
-  const aCal = a.sharedGoogleCalendarId ?? a.googleCalendarId;
-  const bCal = b.sharedGoogleCalendarId ?? b.googleCalendarId;
-  const aId = a.sharedGoogleEventId ?? a.googleEventId;
-  const bId = b.sharedGoogleEventId ?? b.googleEventId;
-  return Boolean(aCal && bCal && aId && bId && aCal === bCal && aId === bId);
-}
-
-function mergeGoogleSharedEvent(existing: CalendarEvent | undefined, incoming: CalendarEvent, userId: string): CalendarEvent {
-  if (!existing) {
-    return {
-      ...incoming,
-      createdBy: userId,
-      updatedBy: userId,
-    };
-  }
-
-  return {
-    ...existing,
-    title: incoming.title,
-    description: incoming.description,
-    location: incoming.location,
-    start: incoming.start,
-    end: incoming.end,
-    allDay: incoming.allDay,
-    color: incoming.color ?? existing.color,
-    emoji: incoming.emoji ?? existing.emoji,
-    googleCalendarId: incoming.googleCalendarId,
-    googleEventId: incoming.googleEventId,
-    sharedGoogleCalendarId: incoming.sharedGoogleCalendarId,
-    sharedGoogleEventId: incoming.sharedGoogleEventId,
-    visibility: 'shared',
-    syncStatus: 'synced',
-    syncError: null,
-    updatedBy: userId,
-    updatedAt: incoming.updatedAt,
-    deletedAt: null,
-  };
 }
 
 export function useGoogleSharedCalendarSync(user: User | null) {
@@ -71,43 +31,10 @@ export function useGoogleSharedCalendarSync(user: User | null) {
       try {
         const result = await httpsCallable<unknown, SharedGoogleSyncResult>(firebaseFunctions(), 'syncSharedGoogleCalendar')({});
         markSharedGoogleSyncOk(result.data);
-        running = false;
-        return;
       } catch (error) {
         markSharedGoogleSyncError(error);
-        // Fall back to direct browser sync only if this device already has a Calendar token.
-      }
-
-      if (
-        user.role !== 'partner' ||
-        !(services.auth.isGoogleCalendarConnected?.() ?? false) ||
-        !services.calendar.listGoogleSharedEvents
-      ) {
-        running = false;
-        return;
-      }
-
-      try {
-        const incoming = await services.calendar.listGoogleSharedEvents!(googleCalendarId);
-        const localBeforeUpsert = services.eventsRepo.getAllRaw?.() ?? services.eventsRepo.getAll();
-        // 取り込みのみ。ここでの自動削除（stale掃除）は撤去した。
-        // 共有カレンダーに載っていない予定を消してしまい、復元がすぐ巻き戻る原因だったため。
-        let applied = 0;
-        for (const ev of incoming) {
-          const existing = localBeforeUpsert.find((local) => sameGoogleSharedEvent(local, ev));
-          if (existing?.deletedAt) continue;
-          await services.eventsRepo.upsert(mergeGoogleSharedEvent(existing, ev, user.userId));
-          applied++;
-        }
-        markSharedGoogleSyncOk({
-          imported: applied,
-          updated: 0,
-          deleted: 0,
-          calendarId: googleCalendarId,
-        });
-      } catch (error) {
-        markSharedGoogleSyncError(error);
-        /* Leave the last Firestore snapshot in place and retry on the next sync trigger. */
+        // The server is the only Google import writer. Keep the last Firestore
+        // snapshot on failure; retry on the next timer/visibility/online trigger.
       } finally {
         running = false;
       }

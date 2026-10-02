@@ -8,13 +8,54 @@ import { EventModal, type EventFormValue } from '@/components/calendar/EventModa
 import { isWeekend } from '@/utils/datePlans';
 import { addDays } from '@/utils/date';
 import { openInMaps, openWebSearch } from '@/utils/maps';
-import { fetchEventImage } from '@/utils/eventImage';
 import {
   upcomingWeekendEventGroups,
   weekendEventToFeedbackItemWithResearch,
-  weekendEventToInitialWithResearch,
   weekendResearchToGroups,
 } from '@/utils/monthlyWeekendEvents';
+import type { WeekendEventPick } from '@/utils/monthlyWeekendEvents';
+
+function toLocalDateKey(value: Date): string {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function hasOfficialImage(item: WeekendEventPick): boolean {
+  return Boolean(item.imageUrl?.trim());
+}
+
+function weekendEventToInitialClean(item: WeekendEventPick): Partial<EventFormValue> {
+  return {
+    title: `${item.emoji} ${item.title}`,
+    description: [
+      item.summary,
+      '',
+      `日程: ${item.dateLabel}`,
+      `エリア: ${item.area}`,
+      `最寄り: ${item.nearestStation}`,
+      `料金: ${item.price}`,
+      `予約: ${item.reservation}`,
+      `雨天対応: ${item.rainFriendly ? '屋内または雨でも使いやすい' : '天候確認が必要'}`,
+      '',
+      item.coupleNote ?? item.summary,
+      '',
+      `出典: ${item.sourceName}`,
+      item.url,
+    ].join('\n'),
+    location: item.locationName,
+    start: new Date(item.start).toISOString(),
+    end: new Date(item.end).toISOString(),
+    reminderMinutes: 60,
+    color: null,
+    emoji: item.emoji,
+    categoryId: item.categoryId,
+    mapsPlaceId: null,
+    recurrence: { frequency: 'none', count: 1 },
+    visibility: 'shared',
+  };
+}
 
 export function PlanScreen({ user }: { user: User }) {
   const { createEvent } = useSharedEvents(user.userId);
@@ -32,14 +73,27 @@ export function PlanScreen({ user }: { user: User }) {
   const [editingIdeaId, setEditingIdeaId] = useState<string | null>(null);
   const [weekendExpanded, setWeekendExpanded] = useState(false);
   const [todayMarker, setTodayMarker] = useState(() => new Date().toDateString());
+  const [activeWeekendKey, setActiveWeekendKey] = useState('');
+
   const weekendGroups = useMemo(() => {
-    const researchedGroups = weekendResearchToGroups(researchedWeekend);
-    const merged = new Map(upcomingWeekendEventGroups().map((group) => [group.key, group]));
+    const todayKey = toLocalDateKey(new Date(todayMarker));
+    const researchedGroups = weekendResearchToGroups(researchedWeekend).filter((group) => group.endsOn >= todayKey);
+    const baseGroups = upcomingWeekendEventGroups().filter((group) => group.endsOn >= todayKey);
+    const merged = new Map(baseGroups.map((group) => [group.key, group]));
     researchedGroups.forEach((group) => merged.set(group.key, group));
     return Array.from(merged.values()).sort((a, b) => a.startsOn.localeCompare(b.startsOn));
   }, [researchedWeekend, todayMarker]);
-  const [activeWeekendKey, setActiveWeekendKey] = useState(weekendGroups[0]?.key ?? '');
-  const [monthlyImages, setMonthlyImages] = useState<Record<string, string | null>>({});
+
+  const displayWeekendGroups = useMemo(
+    () =>
+      weekendGroups
+        .map((group) => ({
+          ...group,
+          events: group.events.filter(hasOfficialImage),
+        }))
+        .filter((group) => group.events.length > 0),
+    [weekendGroups],
+  );
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -50,21 +104,12 @@ export function PlanScreen({ user }: { user: User }) {
   }, []);
 
   useEffect(() => {
-    if (!weekendGroups.some((group) => group.key === activeWeekendKey)) {
-      setActiveWeekendKey(weekendGroups[0]?.key ?? '');
+    if (!displayWeekendGroups.some((group) => group.key === activeWeekendKey)) {
+      setActiveWeekendKey(displayWeekendGroups[0]?.key ?? '');
     }
-  }, [activeWeekendKey, weekendGroups]);
+  }, [activeWeekendKey, displayWeekendGroups]);
 
-  useEffect(() => {
-    weekendGroups.flatMap((group) => group.events).forEach((item) => {
-      if (item.imageUrl || monthlyImages[item.id] !== undefined) return;
-      void fetchEventImage(item.imageQuery || item.locationName || item.title).then((url) => {
-        setMonthlyImages((current) => ({ ...current, [item.id]: url }));
-      });
-    });
-  }, [monthlyImages, weekendGroups]);
-
-  const activeWeekend = weekendGroups.find((group) => group.key === activeWeekendKey) ?? weekendGroups[0];
+  const activeWeekend = displayWeekendGroups.find((group) => group.key === activeWeekendKey) ?? displayWeekendGroups[0];
 
   const openIdeaInCalendar = (idea: CalendarEvent) => {
     const today = new Date();
@@ -228,16 +273,16 @@ export function PlanScreen({ user }: { user: User }) {
           onClick={() => setWeekendExpanded((current) => !current)}
         >
           <span>♡ 週末デート候補</span>
-          <small>{weekendGroups.length > 0 ? `${weekendGroups.reduce((sum, group) => sum + group.events.length, 0)}件` : '準備中'}</small>
+          <small>{displayWeekendGroups.length > 0 ? `${displayWeekendGroups.reduce((sum, group) => sum + group.events.length, 0)}件` : '準備中'}</small>
         </button>
 
         {weekendExpanded && (
           <>
-            {weekendGroups.length === 0 && <div className="list-empty">次の週末候補を準備中です</div>}
-            {weekendGroups.length > 0 && (
+            {displayWeekendGroups.length === 0 && <div className="list-empty">公式画像つきの週末候補を準備中です</div>}
+            {displayWeekendGroups.length > 0 && (
               <>
                 <div className="week-tabs" role="tablist" aria-label="週末を選択">
-                  {weekendGroups.map((group) => (
+                  {displayWeekendGroups.map((group) => (
                     <button
                       key={group.key}
                       type="button"
@@ -258,7 +303,7 @@ export function PlanScreen({ user }: { user: User }) {
                     <div style={{ marginTop: 12 }}>
                       {activeWeekend.events.map((item) => {
                         const feedbackItem = weekendEventToFeedbackItemWithResearch(item);
-                        const imageUrl = item.imageUrl ?? monthlyImages[item.id] ?? null;
+                        const imageUrl = item.imageUrl as string;
                         return (
                           <div
                             className="ai-event-card tappable research-event-card"
@@ -267,8 +312,7 @@ export function PlanScreen({ user }: { user: User }) {
                             tabIndex={0}
                             onClick={() => openWebSearch(`${item.title} ${item.locationName}`)}
                           >
-                            <div className="ai-event-img" style={imageUrl ? { backgroundImage: `url("${imageUrl}")` } : undefined}>
-                              {!imageUrl && <span className="ai-event-emoji">{item.emoji}</span>}
+                            <div className="ai-event-img" style={{ backgroundImage: `url("${imageUrl}")` }}>
                               <span className="ai-event-date">
                                 {item.dateLabel} / {item.area}
                               </span>
@@ -322,7 +366,7 @@ export function PlanScreen({ user }: { user: User }) {
                                 style={{ marginTop: 8 }}
                                 onClick={(event) => {
                                   event.stopPropagation();
-                                  pick(weekendEventToInitialWithResearch(item));
+                                  pick(weekendEventToInitialClean(item));
                                 }}
                               >
                                 ＋ 予定に追加
