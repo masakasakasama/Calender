@@ -1,3 +1,4 @@
+import { stableGoogleImportId, syncWindow, isDedicatedSharedCalendarId } from '@/utils/googleSharedSync';
 import type { IEventsRepository } from '@/repositories/events/IEventsRepository';
 import type { CalendarEvent, GoogleCalendarSummary } from '@/types';
 import { suggestEmoji, eventDisplayColor } from '@/utils/eventStyle';
@@ -56,17 +57,6 @@ function toIso(input?: { dateTime?: string; date?: string }): string {
   return new Date().toISOString();
 }
 
-function stableGoogleImportId(prefix: string, calendarId: string, eventId: string): string {
-  let h1 = 0;
-  let h2 = 0;
-  const seed = `${calendarId}:${eventId}`;
-  for (let i = 0; i < seed.length; i++) {
-    h1 = (h1 * 31 + seed.charCodeAt(i)) >>> 0;
-    h2 = (h2 * 131 + seed.charCodeAt(i)) >>> 0;
-  }
-  return `${prefix}-${h1.toString(16)}${h2.toString(16)}`;
-}
-
 export class GoogleCalendarService implements ICalendarService {
   constructor(
     private events: IEventsRepository,
@@ -84,10 +74,8 @@ export class GoogleCalendarService implements ICalendarService {
   }
 
   async listGoogleSharedEvents(calendarId: string): Promise<CalendarEvent[]> {
-    const now = new Date();
-    const from = new Date(now.getFullYear(), 0, 1);
-    const to = new Date(now);
-    to.setFullYear(to.getFullYear() + 1);
+    if (!isDedicatedSharedCalendarId(calendarId)) throw new Error("専用共有GoogleカレンダーのIDが必要です");
+    const { from, to } = syncWindow();
 
     const calColors = await this.calendarColorMap();
     const qs = new URLSearchParams({
@@ -109,7 +97,7 @@ export class GoogleCalendarService implements ICalendarService {
         const title = ev.summary ?? 'No title';
         const color = (ev.colorId && GOOGLE_EVENT_COLORS[ev.colorId]) || calColors[calendarId] || null;
         return {
-          appEventId: stableGoogleImportId('gshared', calendarId, ev.id),
+          appEventId: stableGoogleImportId(calendarId, ev.id),
           title,
           description: ev.description ?? '',
           location: ev.location ?? '',
@@ -171,11 +159,7 @@ export class GoogleCalendarService implements ICalendarService {
   }
 
   async listRebeccaEvents(googleCalendarIds: string[]): Promise<CalendarEvent[]> {
-    const now = new Date();
-    // 今年の頭（過去分含む）から1年先まで取得する。
-    const from = new Date(now.getFullYear(), 0, 1);
-    const to = new Date(now);
-    to.setFullYear(to.getFullYear() + 1);
+    const { from, to } = syncWindow();
 
     // カレンダーごとの実際の色（backgroundColor）を取得しておく。
     const calColors = await this.calendarColorMap();

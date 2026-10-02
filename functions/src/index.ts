@@ -5,6 +5,7 @@
 //  - 許可された2人のメールだけ呼べる（App Check の代わりに Auth で制限）。
 //  - APIキーは Functions シークレット GEMINI_API_KEY に保存。
 // =====================================================================
+import { googleKey, syncWindow, stableGoogleImportId, isRealGoogleSharedEvent, isDedicatedSharedCalendarId } from './shared/googleSharedSync';
 import * as admin from 'firebase-admin';
 import { GoogleAuth } from 'google-auth-library';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
@@ -162,30 +163,6 @@ function toIso(input?: { dateTime?: string; date?: string }): string {
   return new Date().toISOString();
 }
 
-function stableGoogleImportId(calendarId: string, eventId: string): string {
-  let h1 = 0;
-  let h2 = 0;
-  const seed = `${calendarId}:${eventId}`;
-  for (let i = 0; i < seed.length; i++) {
-    h1 = (h1 * 31 + seed.charCodeAt(i)) >>> 0;
-    h2 = (h2 * 131 + seed.charCodeAt(i)) >>> 0;
-  }
-  return `gshared-${h1.toString(16)}${h2.toString(16)}`;
-}
-
-function googleKey(event: Pick<CalendarEventDoc, 'sharedGoogleCalendarId' | 'googleCalendarId' | 'sharedGoogleEventId' | 'googleEventId'>): string | null {
-  const calendarId = event.sharedGoogleCalendarId ?? event.googleCalendarId;
-  const eventId = event.sharedGoogleEventId ?? event.googleEventId;
-  return calendarId && eventId ? `${calendarId}:${eventId}` : null;
-}
-
-function syncWindow(now = new Date()): { from: Date; to: Date } {
-  const from = new Date(now.getFullYear(), 0, 1);
-  const to = new Date(now);
-  to.setFullYear(to.getFullYear() + 1);
-  return { from, to };
-}
-
 function googleToEvent(calendarId: string, item: GoogleEventItem, existing?: CalendarEventDoc): CalendarEventDoc {
   const now = new Date().toISOString();
   const updatedAt = item.updated ? new Date(item.updated).toISOString() : now;
@@ -249,12 +226,14 @@ async function listSharedGoogleEvents(calendarId: string): Promise<GoogleEventIt
 
 async function syncSharedGoogleCalendarImpl(): Promise<{ imported: number; updated: number; deleted: number; calendarId: string }> {
   const calendarId = GOOGLE_SHARED_CALENDAR_ID.value();
+  if (!isDedicatedSharedCalendarId(calendarId)) throw new Error('専用共有GoogleカレンダーのIDが必要です');
   const db = admin.firestore();
   const incoming = await listSharedGoogleEvents(calendarId);
   const snap = await db.collection('events').where('calendarType', '==', 'shared').get();
   const local = snap.docs.map((doc) => doc.data() as CalendarEventDoc);
   const localByGoogle = new Map<string, CalendarEventDoc>();
   for (const event of local) {
+    if (!isRealGoogleSharedEvent(event, calendarId)) continue;
     const key = googleKey(event);
     if (key) localByGoogle.set(key, event);
   }

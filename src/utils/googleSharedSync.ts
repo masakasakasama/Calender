@@ -1,24 +1,7 @@
 import type { CalendarEvent } from '@/types';
 
-export function googleSharedEventKey(event: CalendarEvent): string | null {
-  const calendarId = event.sharedGoogleCalendarId ?? event.googleCalendarId;
-  const eventId = event.sharedGoogleEventId ?? event.googleEventId;
-  return calendarId && eventId ? `${calendarId}:${eventId}` : null;
-}
-
-function isRealGoogleSharedEvent(event: CalendarEvent, googleCalendarId: string): boolean {
-  if (event.calendarType !== 'shared') return false;
-  const calendarId = event.sharedGoogleCalendarId ?? event.googleCalendarId;
-  const eventId = event.sharedGoogleEventId ?? event.googleEventId;
-  return calendarId === googleCalendarId && Boolean(eventId);
-}
-
-function syncWindow(now: Date): { from: Date; to: Date } {
-  const from = new Date(now.getFullYear(), 0, 1);
-  const to = new Date(now);
-  to.setFullYear(to.getFullYear() + 1);
-  return { from, to };
-}
+import { googleKey as googleSharedEventKey, isRealGoogleSharedEvent, syncWindow } from '../../functions/src/shared/googleSharedSync';
+export { googleKey as googleSharedEventKey, isRealGoogleSharedEvent, syncWindow, stableGoogleImportId, isDedicatedSharedCalendarId } from '../../functions/src/shared/googleSharedSync';
 
 function isInsideSyncWindow(event: CalendarEvent, now: Date): boolean {
   const { from, to } = syncWindow(now);
