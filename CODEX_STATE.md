@@ -12,22 +12,23 @@ Goal: AGENTS.mdで依頼されたGoogle同期レイヤ一本化を段階的に�
 - 従来31/131 hashとgshared prefixを維持し、ID移行を行わない。専用group ID一致をserver/browser両入口で検証。
 - 同期期間をTokyo年始〜同時刻翌年へ統一。UTC/Tokyo/Los Angelesで同一結果を確認。appVersion0.38.11、CIへFunctions buildを追加。
 
+- 段階4: Functions/browser共通factoryへ共有予定・アイデア・Google表示・server importを集約。allDay/syncError/emoji既定値を統一。
+- date-onlyはTokyo midnightへ統一、Google exclusive endと既存appEventId/明示emojiを維持。appVersion0.38.12。
+
 ## Current
-- 段階3のsource共通化が完了。Cloud Functionsへの本番デプロイは未実施で、実アカウント同期合格ではない。
-- バックアップ書き出しを周知。予定の自動削除・Google Delete API・既存doc移行を追加していない。
+- 段階4までsource共通化が完了。本番Functions反映と実Googleアカウント検証は未完了。
+- バックアップ書き出しを周知。自動削除・Google Delete API・ID移行を追加していない。
 
 ## Next
-- 段階4: CalendarEvent factoryのallDay/timezone/emoji/syncErrorを統一。既存doc IDを変える移行はせず自動削除を入れない。
 - isolated Firebase Emulatorでserver故障・復元済み予定・private calendar除外を検証した後、資格情報の範囲でFunctions反映を確認する。
 
 ## Blockers
-- 本番Firebase Cloud Functionsへの接続/デプロイは今回未実施。server停止時はブラウザfallbackで更新せずエラー保持となる。
-- Google Calendar実アカウントの取り込み動作はfixtureテストから合格としない。
+- 本番Firebase Cloud Functions接続/デプロイ権限・実Googleアカウント受入結果がない。fixtureテストを本番合格としない。
 
 ## Verification
-- npm test: 6/6 passed (existing hook 2 + shared rules 4)
-- npm run build: TS/Vite/PWA passed; functions npm ci + npm run build passed
-- legacy ID golden fixture retained; Tokyo window consistent across three timezones; private events ineligible and documents unchanged
+- npm test: 10/10 passed
+- npm run build: TS/Vite/PWA passed; functions npm run build passed
+- UTC/Tokyo/Los Angeles date-only同一、timed offsetと明示emoji/null・error・private・既存ID・tombstone保持を確認
 - git diff --check passed; existing bundle-size warning
 
-Updated at: 2026-10-02T17:51:04.608640+00:00
+Updated at: 2026-10-02T20:53:02.988626+00:00

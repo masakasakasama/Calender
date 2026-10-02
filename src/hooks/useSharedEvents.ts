@@ -1,3 +1,4 @@
+import { createCalendarEvent } from '@/utils/calendarEventFactory';
 import { useEffect, useState, useCallback } from 'react';
 import type { CalendarEvent, EventVisibility } from '@/types';
 import { services } from '@/services/container';
@@ -98,7 +99,7 @@ export function useSharedEvents(currentUserId: string | null) {
       let first: CalendarEvent | null = null;
 
       for (let i = 0; i < count; i++) {
-        const ev: CalendarEvent = {
+        const ev: CalendarEvent = createCalendarEvent({
           appEventId: i === 0 && !parentId ? newId('shared') : `${parentId}-${i + 1}`,
           ...input,
           start: shiftRecurringDate(input.start, frequency, i),
@@ -120,7 +121,7 @@ export function useSharedEvents(currentUserId: string | null) {
           createdAt: now,
           updatedAt: now,
           deletedAt: null,
-        };
+        });
         const saved = await services.eventsRepo.upsert(ev);
         if (!first) first = saved;
         services.notifications.scheduleEventReminder(saved);

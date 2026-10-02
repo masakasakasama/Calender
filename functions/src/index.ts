@@ -1,3 +1,4 @@
+import { createCalendarEvent, googleEventTimes } from './shared/calendarEventFactory';
 // =====================================================================
 // AIデートプラン提案 Cloud Function。
 //  - Gemini API + Google検索グラウンディングで「その土地の今のイベント」も
@@ -157,28 +158,20 @@ function sanitizePlans(parsed: unknown): PlanItem[] {
   });
 }
 
-function toIso(input?: { dateTime?: string; date?: string }): string {
-  if (input?.dateTime) return new Date(input.dateTime).toISOString();
-  if (input?.date) return new Date(`${input.date}T00:00:00+09:00`).toISOString();
-  return new Date().toISOString();
-}
-
 function googleToEvent(calendarId: string, item: GoogleEventItem, existing?: CalendarEventDoc): CalendarEventDoc {
   const now = new Date().toISOString();
   const updatedAt = item.updated ? new Date(item.updated).toISOString() : now;
   const title = item.summary ?? 'No title';
-  return {
+  return createCalendarEvent({
     ...(existing ?? {}),
     appEventId: existing?.appEventId ?? stableGoogleImportId(calendarId, item.id),
     title,
     description: item.description ?? '',
     location: item.location ?? '',
-    start: toIso(item.start),
-    end: toIso(item.end),
-    allDay: Boolean(item.start?.date && !item.start?.dateTime),
+    ...googleEventTimes(item.start, item.end, now),
     reminderMinutes: existing?.reminderMinutes ?? null,
     color: existing?.color ?? null,
-    emoji: existing?.emoji ?? '📌',
+    emoji: existing?.emoji,
     categoryId: existing?.categoryId ?? 'other',
     mapsPlaceId: existing?.mapsPlaceId ?? null,
     recurrence: existing?.recurrence ?? null,
@@ -199,7 +192,7 @@ function googleToEvent(calendarId: string, item: GoogleEventItem, existing?: Cal
     createdAt: existing?.createdAt ?? updatedAt,
     updatedAt,
     deletedAt: null,
-  };
+  });
 }
 
 async function listSharedGoogleEvents(calendarId: string): Promise<GoogleEventItem[]> {

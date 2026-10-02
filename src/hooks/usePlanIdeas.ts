@@ -1,3 +1,4 @@
+import { createCalendarEvent } from '@/utils/calendarEventFactory';
 import { useEffect, useState, useCallback } from 'react';
 import type { CalendarEvent } from '@/types';
 import { services } from '@/services/container';
@@ -29,7 +30,7 @@ export function usePlanIdeas(currentUserId: string | null) {
     async (input: PlanMemoInput) => {
       const now = new Date().toISOString();
       const uid = currentUserId ?? 'unknown';
-      const ev: CalendarEvent = {
+      const ev: CalendarEvent = createCalendarEvent({
         appEventId: newId('plan'),
         title: input.title.trim() || 'やりたいこと',
         description: input.description,
@@ -58,7 +59,7 @@ export function usePlanIdeas(currentUserId: string | null) {
         createdAt: now,
         updatedAt: now,
         deletedAt: null,
-      };
+      });
       await services.eventsRepo.upsert(ev);
     },
     [currentUserId],

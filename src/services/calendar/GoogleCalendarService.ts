@@ -1,7 +1,8 @@
+import { createCalendarEvent, googleEventTimes } from '@/utils/calendarEventFactory';
 import { stableGoogleImportId, syncWindow, isDedicatedSharedCalendarId } from '@/utils/googleSharedSync';
 import type { IEventsRepository } from '@/repositories/events/IEventsRepository';
 import type { CalendarEvent, GoogleCalendarSummary } from '@/types';
-import { suggestEmoji, eventDisplayColor } from '@/utils/eventStyle';
+import { eventDisplayColor } from '@/utils/eventStyle';
 import type { ICalendarService } from './ICalendarService';
 
 const API = 'https://www.googleapis.com/calendar/v3';
@@ -51,12 +52,6 @@ async function authed<T>(tokenProvider: TokenProvider, path: string): Promise<T>
   return res.json() as Promise<T>;
 }
 
-function toIso(input?: { dateTime?: string; date?: string }): string {
-  if (input?.dateTime) return new Date(input.dateTime).toISOString();
-  if (input?.date) return new Date(`${input.date}T00:00:00`).toISOString();
-  return new Date().toISOString();
-}
-
 export class GoogleCalendarService implements ICalendarService {
   constructor(
     private events: IEventsRepository,
@@ -96,17 +91,15 @@ export class GoogleCalendarService implements ICalendarService {
         const updatedAt = ev.updated ? new Date(ev.updated).toISOString() : new Date().toISOString();
         const title = ev.summary ?? 'No title';
         const color = (ev.colorId && GOOGLE_EVENT_COLORS[ev.colorId]) || calColors[calendarId] || null;
-        return {
+        return createCalendarEvent({
           appEventId: stableGoogleImportId(calendarId, ev.id),
           title,
           description: ev.description ?? '',
           location: ev.location ?? '',
-          start: toIso(ev.start),
-          end: toIso(ev.end),
-          allDay: Boolean(ev.start?.date && !ev.start?.dateTime),
+          ...googleEventTimes(ev.start, ev.end, updatedAt),
           reminderMinutes: null,
           color,
-          emoji: suggestEmoji(title),
+
           categoryId: 'other',
           mapsPlaceId: null,
           recurrence: null,
@@ -127,7 +120,7 @@ export class GoogleCalendarService implements ICalendarService {
           createdAt: updatedAt,
           updatedAt,
           deletedAt: null,
-        };
+        });
       });
   }
 
@@ -192,17 +185,15 @@ export class GoogleCalendarService implements ICalendarService {
           //  2) なければそのカレンダーの色(backgroundColor)
           const color =
             (ev.colorId && GOOGLE_EVENT_COLORS[ev.colorId]) || calColors[calendarId] || null;
-          return {
+          return createCalendarEvent({
             appEventId: `google-${calendarId}-${sourceId}`,
             title,
             description: ev.description ?? '',
             location: ev.location ?? '',
-            start: toIso(ev.start),
-            end: toIso(ev.end),
-            allDay: Boolean(ev.start?.date && !ev.start?.dateTime),
+            ...googleEventTimes(ev.start, ev.end, updatedAt),
             reminderMinutes: null,
             color, // Googleカレンダーの実際の色
-            emoji: suggestEmoji(title), // タイトルから絵文字（アイコン表示用）
+
             categoryId: 'other',
             mapsPlaceId: null,
             recurrence: null,
@@ -222,7 +213,7 @@ export class GoogleCalendarService implements ICalendarService {
             createdAt: updatedAt,
             updatedAt,
             deletedAt: null,
-          };
+          });
         });
       }),
     );
