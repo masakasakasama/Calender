@@ -1,6 +1,7 @@
 import { createCalendarEvent } from '@/utils/calendarEventFactory';
 import { useEffect, useState, useCallback } from 'react';
-import type { CalendarEvent, EventVisibility } from '@/types';
+import type { CalendarEvent, EventVisibility, EventRecurrence } from '@/types';
+import { inYear } from '@/utils/yearlyRecurrence';
 import { services } from '@/services/container';
 import { APP_CONFIG } from '@/config/appConfig';
 import { newId } from '@/utils/id';
@@ -88,13 +89,13 @@ export function useSharedEvents(currentUserId: string | null) {
       emoji: string | null;
       categoryId: string | null;
       mapsPlaceId: string | null;
-      recurrence: { frequency: 'none' | 'daily' | 'weekly' | 'monthly'; count: number } | null;
+      recurrence: EventRecurrence | null;
       visibility: EventVisibility;
     }) => {
       const now = new Date().toISOString();
       const uid = currentUserId ?? 'unknown';
       const frequency = input.recurrence?.frequency ?? 'none';
-      const count = frequency === 'none' ? 1 : Math.max(1, Math.min(52, input.recurrence?.count ?? 1));
+      const count = frequency === 'none' || frequency === 'yearly' ? 1 : Math.max(1, Math.min(52, input.recurrence?.count ?? 1));
       const parentId = count > 1 ? newId('recur') : null;
       let first: CalendarEvent | null = null;
 
@@ -104,7 +105,7 @@ export function useSharedEvents(currentUserId: string | null) {
           ...input,
           start: shiftRecurringDate(input.start, frequency, i),
           end: shiftRecurringDate(input.end, frequency, i),
-          recurrence: count > 1 ? { frequency, count } : null,
+          recurrence: frequency === 'yearly' ? { frequency, count: 1 } : count > 1 ? { frequency, count } : null,
           recurrenceParentId: parentId,
           version: 1,
           calendarType: 'shared',
@@ -141,31 +142,51 @@ export function useSharedEvents(currentUserId: string | null) {
   const updateEvent = useCallback(
     async (ev: CalendarEvent) => {
       const uid = currentUserId ?? 'unknown';
+      const source = services.eventsRepo.getById(ev.appEventId);
+      if (source?.recurrence?.frequency === 'yearly') {
+        const displayedStart = inYear(source.start, new Date(ev.start).getFullYear());
+        const displayedEnd = new Date(new Date(displayedStart).getTime() +
+          new Date(source.end).getTime() - new Date(source.start).getTime()).toISOString();
+        const members = events.filter((event) => event.appEventId === source.appEventId ||
+          (source.recurrenceParentId && event.recurrenceParentId === source.recurrenceParentId));
+        let first: CalendarEvent | undefined;
+        for (const member of members) {
+          const delta = new Date(member.start).getFullYear() - new Date(ev.start).getFullYear();
+          const saved = await services.eventsRepo.upsert({
+            ...member,
+            title: ev.title, description: ev.description, location: ev.location,
+            allDay: ev.allDay, reminderMinutes: ev.reminderMinutes,
+            color: ev.color, emoji: ev.emoji, categoryId: ev.categoryId,
+            mapsPlaceId: ev.mapsPlaceId, visibility: ev.visibility,
+            start: ev.start === displayedStart ? member.start : inYear(ev.start, new Date(ev.start).getFullYear() + delta),
+            end: ev.end === displayedEnd ? member.end : inYear(ev.end, new Date(ev.end).getFullYear() + delta),
+            updatedBy: uid, syncStatus: 'synced', version: (member.version ?? 1) + 1,
+          });
+          services.notifications.scheduleEventReminder(saved);
+          first ??= saved;
+        }
+        return first!;
+      }
       const saved = await services.eventsRepo.upsert({ ...ev, updatedBy: uid, syncStatus: 'synced', version: (ev.version ?? 1) + 1 });
       services.notifications.scheduleEventReminder(saved);
       await pushSharedToGoogle(saved);
       return saved;
     },
-    [currentUserId],
+    [currentUserId, events],
   );
 
   const deleteEvent = useCallback(
     async (appEventId: string) => {
-      services.notifications.cancelEventReminder(appEventId);
-      // 実Googleカレンダーにも反映済みなら削除する。
       const existing = services.eventsRepo.getById(appEventId);
-      const gid = existing?.googleEventId;
-      const gcal = existing?.googleCalendarId ?? googleSharedCalId();
-      if (gid && gcal && services.calendar.deleteEventFromGoogle) {
-        try {
-          await services.calendar.deleteEventFromGoogle(gcal, gid);
-        } catch {
-          /* 失敗してもアプリ内削除は続行 */
-        }
+      const members = existing?.recurrence?.frequency === 'yearly' && existing.recurrenceParentId
+        ? events.filter((event) => event.recurrenceParentId === existing.recurrenceParentId)
+        : existing ? [existing] : [];
+      for (const member of members) {
+        services.notifications.cancelEventReminder(member.appEventId);
+        await services.eventsRepo.softDelete(member.appEventId, currentUserId ?? 'unknown');
       }
-      await services.eventsRepo.softDelete(appEventId, currentUserId ?? 'unknown');
     },
-    [currentUserId],
+    [currentUserId, events],
   );
 
   return { events, createEvent, updateEvent, deleteEvent, resyncEvent };

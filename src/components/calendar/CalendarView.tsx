@@ -5,6 +5,7 @@ import type { EventFormValue } from './EventModal';
 import { useSwipeDownClose } from '@/hooks/useSwipeDownClose';
 import { eventDisplayColor } from '@/utils/eventStyle';
 import { dedupeSharedEvents } from '@/utils/dedupeEvents';
+import { expandYearlyEvents } from '@/utils/yearlyRecurrence';
 import { suggestPlans, planToInitial, isWeekend, TIER_LABEL } from '@/utils/datePlans';
 import {
   addDays,
@@ -38,7 +39,8 @@ export function CalendarView({
   const [cursor, setCursor] = useState<Date>(new Date());
   const [slide, setSlide] = useState<'l' | 'r' | null>(null);
   const [sheetDate, setSheetDate] = useState<Date | null>(null);
-  const safeEvents = dedupeSharedEvents(events);
+  const year = cursor.getFullYear();
+  const safeEvents = dedupeSharedEvents(expandYearlyEvents(events, year - 1, year + 1));
 
   // 外部から指定された日（週末バナー等）のシートを開く。
   useEffect(() => {

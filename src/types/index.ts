@@ -47,7 +47,7 @@ export interface RebeccaCalendarSetting {
 export type CalendarType = 'shared' | 'rebecca_source' | 'plan_idea';
 export type EventVisibility = 'shared' | 'private';
 export type SyncStatus = 'synced' | 'pending' | 'error';
-export type RecurrenceFrequency = 'none' | 'daily' | 'weekly' | 'monthly';
+export type RecurrenceFrequency = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 export interface EventRecurrence {
   frequency: RecurrenceFrequency;

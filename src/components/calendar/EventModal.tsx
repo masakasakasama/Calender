@@ -262,6 +262,9 @@ export function EventModal({
                 <option value="60">1時間前</option>
               </select>
             </div>
+            {event?.recurrence?.frequency === 'yearly' && (
+              <p className="muted">毎年の予定です。変更・削除は毎年の予定に反映されます。</p>
+            )}
             {!event && (
               <div className="field">
                 <label>繰り返し</label>
@@ -274,17 +277,18 @@ export function EventModal({
                     <option value="daily">毎日</option>
                     <option value="weekly">毎週</option>
                     <option value="monthly">毎月</option>
+                    <option value="yearly">毎年（期限なし）</option>
                   </select>
                   <input
                     type="number"
                     min={1}
                     max={52}
                     value={v.recurrence?.count ?? 1}
-                    disabled={(v.recurrence?.frequency ?? 'none') === 'none'}
+                    disabled={['none', 'yearly'].includes(v.recurrence?.frequency ?? 'none')}
                     onChange={(e) => set('recurrence', { frequency: v.recurrence?.frequency ?? 'none', count: Math.max(1, Math.min(52, Number(e.target.value) || 1)) })}
                   />
                 </div>
-                <p className="muted" style={{ marginTop: 6 }}>作成時に指定回数ぶん予定を作ります。</p>
+                <p className="muted" style={{ marginTop: 6 }}>{v.recurrence?.frequency === 'yearly' ? '毎年、同じ月日に表示します。' : '作成時に指定回数ぶん予定を作ります。'}</p>
               </div>
             )}
             <button className="btn" disabled={saving || !v.title.trim()} onClick={submit}>
